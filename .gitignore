@@ -4,6 +4,7 @@
 **/*.jar
 .DS_Store
 *.p12
+*_pw.txt
 ePA-Basic
 ePA-XDS-Document
 api-telematik/
@@ -16,3 +17,4 @@ epa4all-e2e-test/truststore-test.txt
 testaccounts_epa.txt
 
 port_forward_*.sh
+*/ProdKonnektors.java

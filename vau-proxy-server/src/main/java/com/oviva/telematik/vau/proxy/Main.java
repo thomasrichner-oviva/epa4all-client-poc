@@ -53,14 +53,17 @@ public class Main {
 
   private InetSocketAddress upstreamProxy;
 
+  private boolean isPu;
+
   // new InetSocketAddress("127.0.0.1", 3128)
   public Main(Configuration config) {
     if (config != null) {
       this.upstreamProxy = config.upstreamProxy();
+      this.isPu = config.isPu();
     }
   }
 
-  public record Configuration(InetSocketAddress upstreamProxy) {}
+  public record Configuration(InetSocketAddress upstreamProxy, boolean isPu) {}
 
   public void start() {
 
@@ -80,7 +83,7 @@ public class Main {
     var clientFactory =
         VauClientFactoryBuilder.builder()
             .outerClient(JavaHttpClient.from(outerVauClient))
-            .isPu(false)
+            .isPu(isPu)
             .withInsecureTrustValidator()
             .build();
 
