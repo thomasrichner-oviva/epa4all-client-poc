@@ -8,7 +8,13 @@
 
 1. What is the source of truth for TI root certififcates?  https://gemspec.gematik.de/docs/gemSpec/gemSpec_Krypt/latest/#5.1 ?
 2. How to check stapled OCSP response? com.oviva.telematik.vau.httpclient.internal.cert.TrustStoreValidator.validate
+   https://github.com/gematik/ref-GemLibPki/blob/master/src/main/java/de/gematik/pki/gemlibpki/ocsp/TucPki006OcspVerifier.java#L118
+   https://github.com/gematik/ref-GemLibPki/blob/master/src/main/java/de/gematik/pki/gemlibpki/ocsp/TucPki006OcspVerifier.java#L408
+   https://github.com/gematik/ref-GemLibPki/blob/master/src/main/java/de/gematik/pki/gemlibpki/ocsp/TucPki006OcspVerifier.java#L140
+   https://github.com/gematik/ref-GemLibPki/blob/master/src/main/java/de/gematik/pki/gemlibpki/ocsp/TucPki006OcspVerifier.java#L293
 3. Who to talk to for VAU tunnel in general at Gematik?
+4. ECC: 01.01.2026 -> no more RSA signing in TI, only ECC
+-> 2x Testweek from 23. Feb
 
 ## References
 - [TI Leitfaden for DiGAs](https://wiki.gematik.de/pages/viewpage.action?pageId=512716463)
