@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.oviva.telematik</groupId>
+    <artifactId>epa4all-parent</artifactId>
+    <version>1.0.13</version>
+  </parent>
+
+  <artifactId>epa4all-phr-client</artifactId>
+
+  <properties>
+    <cxf-xjc.version>4.0.0</cxf-xjc.version>
+    <xml.bind.jaxb.version>2.3.1</xml.bind.jaxb.version>
+    <jaxb.fluent.api.version>3.0</jaxb.fluent.api.version>
+    <generated.sources.path>${project.build.directory}/generated-sources</generated.sources.path>
+    <schema.root.path>${project.basedir}/src/main/resources/schemas</schema.root.path>
+    <binding.path>${project.basedir}/src/main/binding</binding.path>
+    <wsdl.github.url>https://github.com/gematik/ePA-XDS-Document/blob/ePA-3.0/src/schema/PHR_Common.xsd</wsdl.github.url>
+  </properties>
+
+  <dependencies>
+
+    <!-- SOAP -->
+    <dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-rs-client</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-features-logging</artifactId>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.cxf</groupId>
+      <artifactId>cxf-rt-frontend-jaxws</artifactId>
+      <scope>compile</scope>
+    </dependency>
+
+    <!-- model & codegen -->
+    <dependency>
+      <!--      TODO-->
+      <groupId>de.gematik.epa</groupId>
+      <artifactId>lib-ihe-xds</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.ws.rs</groupId>
+      <artifactId>jakarta.ws.rs-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.cxf.xjc-utils</groupId>
+      <artifactId>cxf-xjc-runtime</artifactId>
+      <version>${cxf-xjc.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.qos.logback</groupId>
+      <artifactId>logback-classic</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.cxf</groupId>
+        <artifactId>cxf-codegen-plugin</artifactId>
+        <version>${apache-cxf.version}</version>
+        <dependencies>
+          <!--                    <dependency>-->
+          <!--                        <groupId>org.apache.cxf.xjcplugins</groupId>-->
+          <!--                        <artifactId>cxf-xjc-ts</artifactId>-->
+          <!--                        <version>${cxf-xjc.version}</version>-->
+          <!--                    </dependency>-->
+          <dependency>
+            <groupId>org.jvnet.jaxb2_commons</groupId>
+            <artifactId>jaxb2-fluent-api</artifactId>
+            <version>${jaxb.fluent.api.version}</version>
+          </dependency>
+          <!--                    <dependency>-->
+          <!--                        <groupId>org.jvnet.jaxb2_commons</groupId>-->
+          <!--                        <artifactId>jaxb2-basics</artifactId>-->
+          <!--                        <version>0.13.1</version>-->
+          <!--                    </dependency>-->
+          <!--                    <dependency>-->
+          <!--                        <groupId>javax.xml.bind</groupId>-->
+          <!--                        <artifactId>jaxb-api</artifactId>-->
+          <!--                        <version>${xml.bind.jaxb.version}</version>-->
+          <!--                    </dependency>-->
+          <!--                    <dependency>-->
+          <!--                        <groupId>com.sun.xml.bind</groupId>-->
+          <!--                        <artifactId>jaxb-impl</artifactId>-->
+          <!--                        <version>${xml.bind.jaxb.version}</version>-->
+          <!--                    </dependency>-->
+          <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+          </dependency>
+        </dependencies>
+        <executions>
+          <execution>
+            <id>wsdl2java-plus</id>
+            <goals>
+              <goal>wsdl2java</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <additionalJvmArgs>-Djavax.xml.accessExternalDTD=file</additionalJvmArgs>
+              <sourceRoot>${generated.sources.path}</sourceRoot>
+              <defaultOptions>
+                <extraargs>
+                  <!--                                    &lt;!&ndash; -nexclude options to skip the generation of classes, which are already part of the lib-ihe-xds &ndash;&gt;-->
+                  <!--                                    <extraarg>-nexclude</extraarg>-->
+                  <!--                                    <extraarg>urn:ihe:iti:rmd:2017</extraarg>-->
+                  <!--                                    <extraarg>-nexclude</extraarg>-->
+                  <!--                                    <extraarg>urn:ihe:iti:xds-b:2007</extraarg>-->
+                  <!--                                    <extraarg>-nexclude</extraarg>-->
+                  <!--                                    <extraarg>-->
+                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:lcm:3.0=oasis.names.tc.ebxml_regrep.xsd.lcm._3-->
+                  <!--                                    </extraarg>-->
+                  <!--                                    <extraarg>-nexclude</extraarg>-->
+                  <!--                                    <extraarg>-->
+                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0=oasis.names.tc.ebxml_regrep.xsd.query._3-->
+                  <!--                                    </extraarg>-->
+                  <!--                                    <extraarg>-nexclude</extraarg>-->
+                  <!--                                    <extraarg>-->
+                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0=oasis.names.tc.ebxml_regrep.xsd.rim._3-->
+                  <!--                                    </extraarg>-->
+                  <!--                                    <extraarg>-nexclude</extraarg>-->
+                  <!--                                    <extraarg>-->
+                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0=oasis.names.tc.ebxml_regrep.xsd.rs._3-->
+                  <!--                                    </extraarg>-->
+                  <!--                                    <extraarg>-exceptionSuper</extraarg>-->
+                  <!--                                    <extraarg>telematik.ws.conn.exception.FaultMessageException</extraarg>-->
+                  <extraarg>-xjc-Xfluent-api</extraarg>
+                  <!--                                    <extraarg>-xjc-XsimpleEquals</extraarg>-->
+                  <!--                                    <extraarg>-xjc-XsimpleHashCode</extraarg>-->
+                  <!--                                    <extraarg>-xjc-Xts</extraarg>-->
+                </extraargs>
+                <!--                                <bindingFiles>-->
+                <!--                                    <bindingFile>${binding.path}/PHR_Common.jaxb.xjb</bindingFile>-->
+                <!--                                </bindingFiles>-->
+              </defaultOptions>
+              <wsdlOptions>
+                <wsdlOption>
+                  <wsdl>${schema.root.path}/XDSDocumentService.wsdl</wsdl>
+                  <bindingFiles>
+                    <bindingFile>${binding.path}/XDSDocumentService.jaxws.xjb</bindingFile>
+                    <!--                                        <bindingFile>${binding.path}/PHR_Common.jaxb.xjb</bindingFile>-->
+                    <!--                    <bindingFile>${binding.path}/SignatureService_V7_4.jaxb.xjb</bindingFile>-->
+                    <!--                    <bindingFile>${binding.path}/CertificateServiceCommon_V2_0.jaxb.xjb</bindingFile>-->
+                  </bindingFiles>
+                  <extraargs>
+                    <!--                                        <extraarg>-wsdlLocation</extraarg>-->
+                    <!--                                        <extraarg>${wsdl.github.url}src/schema/XDSDocumentService.wsdl</extraarg>-->
+                  </extraargs>
+                </wsdlOption>
+              </wsdlOptions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.cxf</groupId>
+        <artifactId>cxf-xjc-plugin</artifactId>
+        <version>${cxf-xjc.version}</version>
+        <configuration>
+          <additionalJvmArgs>-Djavax.xml.accessExternalDTD=file</additionalJvmArgs>
+          <extensions>
+            <extension>org.apache.cxf.xjcplugins:cxf-xjc-ts:${cxf-xjc.version}</extension>
+            <extension>org.jvnet.jaxb2_commons:jaxb2-fluent-api:${jaxb.fluent.api.version}</extension>
+            <extension>org.jvnet.jaxb2_commons:jaxb2-basics:0.13.1</extension>
+            <extension>javax.xml.bind:jaxb-api:${xml.bind.jaxb.version}</extension>
+            <extension>com.sun.xml.bind:jaxb-impl:${xml.bind.jaxb.version}</extension>
+          </extensions>
+        </configuration>
+        <executions>
+          <execution>
+            <id>generate-sources</id>
+            <goals>
+              <goal>xsdtojava</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <sourceRoot>${generated.sources.path}</sourceRoot>
+              <xsdOptions>
+                <xsdOption>
+                  <xsd>${schema.root.path}/PHR_Common.xsd</xsd>
+                  <extensionArgs>
+                    <extensionArg>-Xfluent-api</extensionArg>
+                    <extensionArg>-XsimpleEquals</extensionArg>
+                    <extensionArg>-XsimpleHashCode</extensionArg>
+                    <extensionArg>-Xts</extensionArg>
+                  </extensionArgs>
+                  <bindingFiles>
+                    <bindingFile>${binding.path}/PHR_Common.jaxb.xjb</bindingFile>
+                  </bindingFiles>
+                </xsdOption>
+              </xsdOptions>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.4.0</version>
+        <executions>
+          <execution>
+            <id>add-source</id>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <phase>generate-sources</phase>
+            <configuration>
+              <sources>
+                <source>${generated.sources.path}</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>
