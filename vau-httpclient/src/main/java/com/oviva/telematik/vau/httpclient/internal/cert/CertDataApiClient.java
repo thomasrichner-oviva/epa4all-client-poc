@@ -48,7 +48,11 @@ public class CertDataApiClient {
       dumpAsPEM(data);
     }
 
-    return trustValidator.validate(cert, ca, chain, ocspResponseDer);
+    var r = trustValidator.validate(cert, ca, chain, ocspResponseDer);
+    if (!r.trusted()) {
+      log.atDebug().log("VAU certificate untrusted: {}", r.message());
+    }
+    return r.trusted();
   }
 
   private void dumpOcsp(byte[] ocspResponseDer) {

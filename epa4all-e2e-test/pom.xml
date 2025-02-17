@@ -11,14 +11,6 @@
   <artifactId>epa4all-e2e-test</artifactId>
 
   <dependencies>
-
-    <dependency>
-      <!-- jsoup HTML parser library @ https://jsoup.org/ -->
-      <groupId>org.jsoup</groupId>
-      <artifactId>jsoup</artifactId>
-      <version>1.18.3</version>
-      <scope>test</scope>
-    </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>epa4all-phr-client</artifactId>

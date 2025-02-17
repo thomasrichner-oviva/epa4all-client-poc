@@ -18,9 +18,11 @@ public interface TrustValidator {
    *     href="https://gemspec.gematik.de/docs/gemKPT/gemKPT_PKI_TIP/latest/#2.3.2">TSL</a>
    * @return whether the certificate can be trusted or not
    */
-  boolean validate(
+  ValidationResult validate(
       X509Certificate certificate,
       X509Certificate issuerCa,
       List<X509Certificate> certificateChain,
       byte[] ocspResponseDer);
+
+  record ValidationResult(boolean trusted, String message, Throwable cause) {}
 }

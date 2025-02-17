@@ -26,7 +26,8 @@ class ConnectionFactoryTest {
     var vauUri = URI.create("http://localhost:8081/VAU");
 
     TrustValidator naiveValidator =
-        (X509Certificate a, X509Certificate b, List<X509Certificate> c, byte[] d) -> true;
+        (X509Certificate a, X509Certificate b, List<X509Certificate> c, byte[] d) ->
+            new TrustValidator.ValidationResult(true, null, null);
     var cf =
         new ConnectionFactory(
             JavaHttpClient.from(HttpClient.newHttpClient()), false, "Test/0.0.1", naiveValidator);

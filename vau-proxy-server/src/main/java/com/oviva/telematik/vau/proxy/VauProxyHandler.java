@@ -7,16 +7,20 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.util.AttachmentKey;
 import io.undertow.util.HttpString;
 import io.undertow.util.Methods;
+import io.undertow.util.StatusCodes;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class VauProxyHandler implements HttpHandler {
 
   private static final AttachmentKey<HttpClient> UPSTREAM_KEY =
       AttachmentKey.create(HttpClient.class);
+  private static final Logger log = LoggerFactory.getLogger(VauProxyHandler.class);
 
   private final ConcurrentHashMap<CacheKey, HttpClient> clientCache = new ConcurrentHashMap<>();
 
@@ -49,7 +53,16 @@ public class VauProxyHandler implements HttpHandler {
               // open or re-use a VAU tunnel
               var httpClient = getOrCreateUpstream(fbex);
               var req = prepareRequest(fbex, requestBytes);
-              var res = httpClient.call(req);
+              HttpClient.Response res = null;
+              try {
+                res = httpClient.call(req);
+              } catch (HttpClient.HttpException e) {
+                log.atDebug()
+                    .setCause(e)
+                    .log("upstream VAU call failed: %s".formatted(e.getMessage()));
+                fbex.setStatusCode(StatusCodes.BAD_GATEWAY).endExchange();
+                return;
+              }
               sendResponse(fbex, res);
             });
   }
