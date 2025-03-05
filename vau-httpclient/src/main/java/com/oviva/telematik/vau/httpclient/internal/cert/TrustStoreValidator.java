@@ -4,13 +4,11 @@ import static org.bouncycastle.asn1.isismtt.ISISMTTObjectIdentifiers.id_isismtt_
 import static org.bouncycastle.asn1.isismtt.ISISMTTObjectIdentifiers.id_isismtt_at_certHash;
 
 import de.gematik.vau.lib.exceptions.VauException;
-import de.gematik.vau.lib.exceptions.VauProtocolException;
 import java.io.IOException;
 import java.security.*;
 import java.security.cert.*;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
@@ -27,7 +25,6 @@ import org.slf4j.LoggerFactory;
 public class TrustStoreValidator implements TrustValidator {
 
   private static final String JCE_PROVIDER = BouncyCastleProvider.PROVIDER_NAME;
-  private static final String TRUSTSTORE_PASSWORD = "1234";
   private static final Logger log = LoggerFactory.getLogger(TrustStoreValidator.class);
 
   private static final ASN1ObjectIdentifier OID_EPA_VAU =
@@ -257,37 +254,6 @@ public class TrustStoreValidator implements TrustValidator {
       return (BasicOCSPResp) ocspResponse.getResponseObject();
     } catch (OCSPException e) {
       throw new RuntimeException("failed to decode OCSP response", e);
-    }
-  }
-
-  private KeyStore loadTrustStore(String name) {
-
-    try {
-      var trustStore = KeyStore.getInstance("PKCS12", JCE_PROVIDER);
-      trustStore.load(this.getClass().getResourceAsStream(name), TRUSTSTORE_PASSWORD.toCharArray());
-      if (trustStore.size() == 0) {
-        throw new VauProtocolException("no truststore found at %s".formatted(name));
-      }
-      return trustStore;
-    } catch (KeyStoreException | IOException | NoSuchAlgorithmException | CertificateException e) {
-      throw new RuntimeException("failed to load trust store", e);
-    } catch (NoSuchProviderException e) {
-      throw new VauException("missing JCE provider %s".formatted(JCE_PROVIDER), e);
-    }
-  }
-
-  private List<X509Certificate> readAllCertificatesFromTrustStore(KeyStore trustStore) {
-
-    try {
-      var certificates = new ArrayList<X509Certificate>();
-      var aliases = trustStore.aliases();
-      while (aliases.hasMoreElements()) {
-        var alias = aliases.nextElement();
-        certificates.add((X509Certificate) trustStore.getCertificate(alias));
-      }
-      return certificates;
-    } catch (KeyStoreException e) {
-      throw new IllegalStateException("failed to read trust-store certificate", e);
     }
   }
 

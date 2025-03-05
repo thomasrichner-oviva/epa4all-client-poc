@@ -6,84 +6,70 @@ import com.oviva.telematik.vau.httpclient.VauClientException;
 import de.gematik.vau.lib.exceptions.VauProtocolException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.cert.*;
 import java.util.*;
+import java.util.stream.Collectors;
+import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.util.io.pem.PemObject;
 import org.bouncycastle.util.io.pem.PemWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class CertDataApiClient {
+public class VauCertificateClient {
 
-  private static final Logger log = LoggerFactory.getLogger(CertDataApiClient.class);
+  private static final Logger log = LoggerFactory.getLogger(VauCertificateClient.class);
 
   private final TrustValidator trustValidator;
   private final CBORMapper mapper = new CBORMapper();
   private final HttpClient outerHttpClient;
 
-  public CertDataApiClient(HttpClient outerHttpClient, TrustValidator trustValidator) {
+  public VauCertificateClient(HttpClient outerHttpClient, TrustValidator trustValidator) {
     this.trustValidator = trustValidator;
     this.outerHttpClient = outerHttpClient;
   }
 
-  public boolean isTrusted(URI endpoint, byte[] certHash, int cdv, byte[] ocspResponseDer) {
+  public CertData fetchAndValidate(URI endpoint, byte[] certHash, int cdv, byte[] ocspResponseDer)
+      throws CertificateValidationException {
 
-    // https://download.tsl.ti-dienste.de/
+    if (log.isDebugEnabled()) {
+      log.atDebug().log("ocsp response:\n{}", Hex.toHexString(ocspResponseDer));
+    }
 
     var data = fetch(endpoint, certHash, cdv);
 
-    // https://download-test.tsl.ti-dienste.de/
-    // https://download.tsl.ti-dienste.de/
     var ca = parseDerCertificate(data.ca());
     var cert = parseDerCertificate(data.cert());
-    var chain = data.rcaChain().stream().map(CertDataApiClient::parseDerCertificate).toList();
-
-    dumpOcsp(ocspResponseDer);
-
-    // TODO remove
-    if (log.isDebugEnabled()) {
-      dumpAsPEM(data);
-    }
+    var chain = data.rcaChain().stream().map(VauCertificateClient::parseDerCertificate).toList();
 
     var r = trustValidator.validate(cert, ca, chain, ocspResponseDer);
     if (!r.trusted()) {
-      log.atDebug().log("VAU certificate untrusted: {}", r.message());
+      throw new CertificateValidationException(
+          "VAU certificate untrusted: %s".formatted(r.message()));
     }
-    return r.trusted();
+    return new CertData(cert, ca, chain);
   }
 
-  private void dumpOcsp(byte[] ocspResponseDer) {
-    try {
-      Files.write(Path.of("ocsp.der"), ocspResponseDer);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+  private String certificateDerChainToPem(List<byte[]> certificates) {
+    return certificates.stream().map(this::certificateDerToPem).collect(Collectors.joining());
   }
 
-  private void dumpAsPEM(CertData data) {
-    writeCertificatesToFile("ca.pem", List.of(data.ca()));
-    writeCertificatesToFile("cert.pem", List.of(data.cert()));
-    writeCertificatesToFile("chain.pem", data.rcaChain());
-  }
+  private String certificateDerToPem(byte[] certificate) {
 
-  private void writeCertificatesToFile(String name, List<byte[]> certificates) {
-
-    try (var fout = Files.newBufferedWriter(Path.of(name));
-        var w = new PemWriter(fout)) {
-      for (byte[] cert : certificates) {
-        var pemObject = new PemObject("CERTIFICATE", cert);
+    try (var sw = new StringWriter()) {
+      try (var w = new PemWriter(sw)) {
+        var pemObject = new PemObject("CERTIFICATE", certificate);
         w.writeObject(pemObject);
+        w.flush();
       }
-
+      return sw.toString();
     } catch (IOException e) {
-      throw new RuntimeException(e);
+      throw new IllegalStateException("What the heck? Should not happen.", e);
     }
   }
 
-  public CertData fetch(URI endpoint, byte[] certHash, int cdv) {
+  public CertDataResponse fetch(URI endpoint, byte[] certHash, int cdv) {
     var hex = HexFormat.of();
     var certIdentifier = "%s-%d".formatted(hex.formatHex(certHash), cdv);
     var certEndpoint = endpoint.resolve("/CertData.%s".formatted(certIdentifier));
@@ -93,7 +79,15 @@ public class CertDataApiClient {
           "invalid code %d, expected 200: GET %s".formatted(res.status(), certEndpoint));
     }
     try {
-      return mapper.readValue(res.body(), CertData.class);
+      var data = mapper.readValue(res.body(), CertDataResponse.class);
+
+      if (log.isDebugEnabled()) {
+        log.atDebug().log("cert response:\n{}", certificateDerToPem(data.cert()));
+        log.atDebug().log("ca response:\n{}", certificateDerToPem(data.ca()));
+        log.atDebug().log("chain response:\n{}", certificateDerChainToPem(data.rcaChain()));
+      }
+
+      return data;
     } catch (IOException e) {
       throw new VauClientException("invalid response body: GET %s".formatted(certEndpoint), e);
     }

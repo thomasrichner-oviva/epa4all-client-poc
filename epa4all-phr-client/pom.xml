@@ -78,31 +78,11 @@
         <artifactId>cxf-codegen-plugin</artifactId>
         <version>${apache-cxf.version}</version>
         <dependencies>
-          <!--                    <dependency>-->
-          <!--                        <groupId>org.apache.cxf.xjcplugins</groupId>-->
-          <!--                        <artifactId>cxf-xjc-ts</artifactId>-->
-          <!--                        <version>${cxf-xjc.version}</version>-->
-          <!--                    </dependency>-->
           <dependency>
             <groupId>org.jvnet.jaxb2_commons</groupId>
             <artifactId>jaxb2-fluent-api</artifactId>
             <version>${jaxb.fluent.api.version}</version>
           </dependency>
-          <!--                    <dependency>-->
-          <!--                        <groupId>org.jvnet.jaxb2_commons</groupId>-->
-          <!--                        <artifactId>jaxb2-basics</artifactId>-->
-          <!--                        <version>0.13.1</version>-->
-          <!--                    </dependency>-->
-          <!--                    <dependency>-->
-          <!--                        <groupId>javax.xml.bind</groupId>-->
-          <!--                        <artifactId>jaxb-api</artifactId>-->
-          <!--                        <version>${xml.bind.jaxb.version}</version>-->
-          <!--                    </dependency>-->
-          <!--                    <dependency>-->
-          <!--                        <groupId>com.sun.xml.bind</groupId>-->
-          <!--                        <artifactId>jaxb-impl</artifactId>-->
-          <!--                        <version>${xml.bind.jaxb.version}</version>-->
-          <!--                    </dependency>-->
           <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
@@ -121,51 +101,16 @@
               <sourceRoot>${generated.sources.path}</sourceRoot>
               <defaultOptions>
                 <extraargs>
-                  <!--                                    &lt;!&ndash; -nexclude options to skip the generation of classes, which are already part of the lib-ihe-xds &ndash;&gt;-->
-                  <!--                                    <extraarg>-nexclude</extraarg>-->
-                  <!--                                    <extraarg>urn:ihe:iti:rmd:2017</extraarg>-->
-                  <!--                                    <extraarg>-nexclude</extraarg>-->
-                  <!--                                    <extraarg>urn:ihe:iti:xds-b:2007</extraarg>-->
-                  <!--                                    <extraarg>-nexclude</extraarg>-->
-                  <!--                                    <extraarg>-->
-                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:lcm:3.0=oasis.names.tc.ebxml_regrep.xsd.lcm._3-->
-                  <!--                                    </extraarg>-->
-                  <!--                                    <extraarg>-nexclude</extraarg>-->
-                  <!--                                    <extraarg>-->
-                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:query:3.0=oasis.names.tc.ebxml_regrep.xsd.query._3-->
-                  <!--                                    </extraarg>-->
-                  <!--                                    <extraarg>-nexclude</extraarg>-->
-                  <!--                                    <extraarg>-->
-                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:rim:3.0=oasis.names.tc.ebxml_regrep.xsd.rim._3-->
-                  <!--                                    </extraarg>-->
-                  <!--                                    <extraarg>-nexclude</extraarg>-->
-                  <!--                                    <extraarg>-->
-                  <!--                                        urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0=oasis.names.tc.ebxml_regrep.xsd.rs._3-->
-                  <!--                                    </extraarg>-->
-                  <!--                                    <extraarg>-exceptionSuper</extraarg>-->
-                  <!--                                    <extraarg>telematik.ws.conn.exception.FaultMessageException</extraarg>-->
                   <extraarg>-xjc-Xfluent-api</extraarg>
-                  <!--                                    <extraarg>-xjc-XsimpleEquals</extraarg>-->
-                  <!--                                    <extraarg>-xjc-XsimpleHashCode</extraarg>-->
-                  <!--                                    <extraarg>-xjc-Xts</extraarg>-->
                 </extraargs>
-                <!--                                <bindingFiles>-->
-                <!--                                    <bindingFile>${binding.path}/PHR_Common.jaxb.xjb</bindingFile>-->
-                <!--                                </bindingFiles>-->
               </defaultOptions>
               <wsdlOptions>
                 <wsdlOption>
                   <wsdl>${schema.root.path}/XDSDocumentService.wsdl</wsdl>
                   <bindingFiles>
                     <bindingFile>${binding.path}/XDSDocumentService.jaxws.xjb</bindingFile>
-                    <!--                                        <bindingFile>${binding.path}/PHR_Common.jaxb.xjb</bindingFile>-->
-                    <!--                    <bindingFile>${binding.path}/SignatureService_V7_4.jaxb.xjb</bindingFile>-->
-                    <!--                    <bindingFile>${binding.path}/CertificateServiceCommon_V2_0.jaxb.xjb</bindingFile>-->
                   </bindingFiles>
-                  <extraargs>
-                    <!--                                        <extraarg>-wsdlLocation</extraarg>-->
-                    <!--                                        <extraarg>${wsdl.github.url}src/schema/XDSDocumentService.wsdl</extraarg>-->
-                  </extraargs>
+                  <extraargs></extraargs>
                 </wsdlOption>
               </wsdlOptions>
             </configuration>
@@ -209,25 +154,6 @@
                   </bindingFiles>
                 </xsdOption>
               </xsdOptions>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.4.0</version>
-        <executions>
-          <execution>
-            <id>add-source</id>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <phase>generate-sources</phase>
-            <configuration>
-              <sources>
-                <source>${generated.sources.path}</source>
-              </sources>
             </configuration>
           </execution>
         </executions>

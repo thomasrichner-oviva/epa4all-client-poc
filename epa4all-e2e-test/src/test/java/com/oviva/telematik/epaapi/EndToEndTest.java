@@ -95,7 +95,6 @@ class EndToEndTest {
     // KVNR: X110467329
     // KVNR: X110485695
     // KVNR: X110406713
-    // KVNR: U903747974 Frankieboy
     //    final var insurantId = "U903747974";
     // KVNR: X110661675 (authorized & FdV)
     final var insurantId = "X110661675";
@@ -261,7 +260,9 @@ class EndToEndTest {
 
     // setup the soap client to go via VAU proxy
     var client =
-        new SoapClientFactory(new ClientConfiguration(new InetSocketAddress("localhost", vauProxyServerListener.getPort())));
+        new SoapClientFactory(
+            new ClientConfiguration(
+                new InetSocketAddress("localhost", vauProxyServerListener.getPort())));
     var phrManagementPort = client.getIDocumentManagementPort(phrEndpoint);
     var phrService = new PhrService(phrManagementPort);
 
@@ -272,7 +273,6 @@ class EndToEndTest {
 
     System.out.println("Success!");
   }
-
 
   private URI downgradeUri(URI u) {
 

@@ -18,3 +18,5 @@ testaccounts_epa.txt
 
 port_forward_*.sh
 */ProdKonnektors.java
+pom.xml.versionsBackup
+.vscode/

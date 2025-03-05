@@ -6,11 +6,9 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 import com.oviva.telematik.vau.httpclient.HttpClient;
 import com.oviva.telematik.vau.httpclient.VauClientFactory;
-import com.oviva.telematik.vau.httpclient.internal.cert.CertDataApiClient;
 import com.oviva.telematik.vau.httpclient.internal.cert.TrustStoreValidator;
 import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import de.gematik.vau.lib.VauClientStateMachine;
-import de.gematik.vau.lib.data.SignedPublicKeysTrustValidator;
 import de.gematik.vau.lib.exceptions.VauProtocolException;
 import java.io.IOException;
 import java.net.URI;
@@ -61,17 +59,9 @@ public class ConnectionFactory implements VauClientFactory {
    */
   public HttpClient connect(URI vauUri) {
 
-    var certDataClient = new CertDataApiClient(outerClient, trustValidator);
-
-    SignedPublicKeysTrustValidator signedPublicKeysTrustValidator =
-        signedPublicKeys ->
-            certDataClient.isTrusted(
-                vauUri,
-                signedPublicKeys.certHash(),
-                signedPublicKeys.cdv(),
-                signedPublicKeys.ocspResponse());
-
-    var client = new VauClientStateMachine(isPu, signedPublicKeysTrustValidator);
+    var client =
+        new VauClientStateMachine(
+            isPu, new SignedPublicKeysTrustValidatorImpl(outerClient, trustValidator, vauUri));
 
     if (log.isDebugEnabled()) {
       log.atDebug().log("starting VAU handshake");

@@ -402,10 +402,12 @@ public class AuthorizationService {
 
     try {
       var x5c = Base64.encode(cert.getEncoded());
+
+      // TODO: use ES256 but with the brainpoolP256r curve
+      // this is not according to the official RFC, this is the intended way for this use-case
+      // though ¯\_(ツ)_/¯
+
       var header =
-          // TODO: use ES256 but with the brainpoolP256r curve
-          // this is not according to the official RFC, this is the intended way for this use-case
-          // though ¯\_(ツ)_/¯
           new JWSHeader.Builder(JWSAlgorithm.PS256)
               .type(JOSEObjectType.JWT)
               .x509CertChain(List.of(x5c))
