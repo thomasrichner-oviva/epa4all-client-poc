@@ -41,7 +41,6 @@
 
     <!-- model & codegen -->
     <dependency>
-      <!--      TODO-->
       <groupId>de.gematik.epa</groupId>
       <artifactId>lib-ihe-xds</artifactId>
     </dependency>

@@ -39,7 +39,8 @@ public class VauHttpClientImpl implements HttpClient {
 
     // we don't support chunking and always send all at once, so strip the header and set a proper
     // length
-    headers = adjustContentLengthHeader(headers, req.body().length);
+    var length = req.body() != null ? req.body().length : 0;
+    headers = adjustContentLengthHeader(headers, length);
 
     req = new Request(req.uri(), req.method(), headers, req.body());
 

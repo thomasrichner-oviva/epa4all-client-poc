@@ -3,7 +3,7 @@ package com.oviva.telematik.epaapi;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class WriteDocumentException extends RuntimeException { // TODO
+public class WriteDocumentException extends RuntimeException {
 
   private final List<Error> errors;
 

@@ -13,6 +13,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
+import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.vau.epa4all.client.authz.internal.*;
 import com.oviva.telematik.vau.epa4all.client.internal.*;
 import com.oviva.telematik.vau.epa4all.client.providers.RsaSignatureService;
@@ -74,7 +75,7 @@ public class AuthorizationService {
     this.rsaSignatureService = rsaSignatureService;
   }
 
-  public void authorizeVauWithSmcB(String insurantId) {
+  public void authorizeVauWithSmcB(SmcbCard card, String insurantId) {
 
     var nonceRes = getNonce(insurantId);
     var nonce = nonceRes.nonce();
@@ -85,16 +86,6 @@ public class AuthorizationService {
     var parsedChallenge = parseAndValidateChallenge(authRes.challenge());
 
     // A_20665-01
-    var cards = rsaSignatureService.getCards();
-
-    var card =
-        cards.stream().findFirst().orElseThrow(() -> new AuthorizationException("no SMC-B found"));
-
-    if (!card.pinVerified()) {
-      throw new AuthorizationException(
-          "SMC-B PIN is not verified, handle: %s".formatted(card.handle()));
-    }
-
     var encryptedSignedChallenge = encryptAndSignChallenge(card, parsedChallenge);
 
     URI idpBaseUri = null;
@@ -237,8 +228,7 @@ public class AuthorizationService {
     return JsonCodec.readBytes(res.body(), NonceResponse.class);
   }
 
-  private JWEObject encryptAndSignChallenge(
-      @NonNull RsaSignatureService.Card card, @NonNull SignedJWT challenge) {
+  private JWEObject encryptAndSignChallenge(@NonNull SmcbCard card, @NonNull SignedJWT challenge) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
 
     var expiry = expiryFromChallengeBody(challenge);
@@ -331,12 +321,12 @@ public class AuthorizationService {
     return new JWEObject(jweHeader, jweBody);
   }
 
-  private SignedJWT signChallenge(RsaSignatureService.Card card, String challenge) {
+  private SignedJWT signChallenge(SmcbCard card, String challenge) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
     try {
       var claims = new JWTClaimsSet.Builder().claim("njwt", challenge).build();
 
-      var cert = card.certificate();
+      var cert = card.authRsaCertificate();
 
       var header =
           // FUTURE: use ECC with the "alg" BS256R1 instead
@@ -348,7 +338,7 @@ public class AuthorizationService {
 
       var jwt = new SignedJWT(header, claims);
 
-      var signer = signerForCard(card.handle());
+      var signer = signerForCard(card);
       jwt.sign(signer);
 
       debugLogSignedChallenge(card.handle(), challenge, jwt);
@@ -382,7 +372,7 @@ public class AuthorizationService {
             jwt.serialize());
   }
 
-  private SignedJWT attestClient(RsaSignatureService.Card card, String nonce) {
+  private SignedJWT attestClient(SmcbCard card, String nonce) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_Aktensystem_ePAfueralle/gemSpec_Aktensystem_ePAfueralle_V1.2.0/#A_25444-01
 
     var iat = Instant.now();
@@ -397,7 +387,7 @@ public class AuthorizationService {
             .claim("nonce", nonce)
             .build();
 
-    var cert = card.certificate();
+    var cert = card.authRsaCertificate();
 
     //    if (!(cert.getPublicKey() instanceof ECPublicKey ecPublicKey)) {
     //      throw new AuthorizationException(
@@ -423,21 +413,23 @@ public class AuthorizationService {
 
       var jwt = new SignedJWT(header, claims);
 
-      var signer = signerForCard(card.handle());
+      var signer = signerForCard(card);
 
       jwt.sign(signer);
       return jwt;
     } catch (JOSEException | CertificateEncodingException e) {
-      throw new AuthorizationException("TODO", e);
+      throw new AuthorizationException("failed client attestation - signing nonce", e);
     }
   }
 
-  private JWSSigner signerForCard(String cardHandle) {
+  private JWSSigner signerForCard(SmcbCard card) {
     return new SmcBSigner(
         (h, c) -> {
           if (JWSAlgorithm.PS256.equals(h.getAlgorithm())) {
-            return rsaSignatureService.authSign(cardHandle, c);
+            return rsaSignatureService.authSign(card, c);
           }
+
+          // TODO implement ECC
           var eccAlgs = Set.of(JWSAlgorithm.ES256, JWS_ALG_BS256R1);
           if (eccAlgs.contains(h.getAlgorithm())) {
             throw new UnsupportedOperationException("ecc alg not properly supported yet");

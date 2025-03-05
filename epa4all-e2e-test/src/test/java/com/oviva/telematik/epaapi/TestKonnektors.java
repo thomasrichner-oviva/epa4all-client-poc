@@ -26,6 +26,7 @@ public class TestKonnektors {
       var proxyPort = 3128;
 
       var userAgent = "TEST/0.0.1";
+      //      var userAgent = "GEMOvivepa4fA1d5W8sR/0.0.1";
       var tiKonnektorUri = "https://10.156.145.103:443";
       var keystoreFile = "keys/vKon_Client_172.026.002.035.p12";
       var keystorePassword = "0000";

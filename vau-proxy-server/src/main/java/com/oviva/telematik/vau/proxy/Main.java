@@ -51,21 +51,18 @@ public class Main {
 
   private Undertow proxyServer;
 
-  private InetSocketAddress upstreamProxy;
-
-  private boolean isPu;
+  private Configuration config;
 
   // new InetSocketAddress("127.0.0.1", 3128)
   public Main(Configuration config) {
-    if (config != null) {
-      this.upstreamProxy = config.upstreamProxy();
-      this.isPu = config.isPu();
-    }
+    this.config = config;
   }
 
-  public record Configuration(InetSocketAddress upstreamProxy, boolean isPu) {}
+  public record Configuration(InetSocketAddress upstreamProxy, int listenPort, boolean isPu) {}
 
-  public void start() {
+  public record ServerInfo(InetSocketAddress listenAddress) {}
+
+  public ServerInfo start() {
 
     var outerVauClientBuilder =
         java.net.http.HttpClient.newBuilder()
@@ -73,8 +70,8 @@ public class Main {
             .sslContext(trustAllContext())
             .connectTimeout(Duration.ofSeconds(10));
 
-    if (upstreamProxy != null) {
-      outerVauClientBuilder.proxy(ProxySelector.of(upstreamProxy));
+    if (config.upstreamProxy() != null) {
+      outerVauClientBuilder.proxy(ProxySelector.of(config.upstreamProxy()));
     }
 
     var outerVauClient = outerVauClientBuilder.build();
@@ -83,7 +80,7 @@ public class Main {
     var clientFactory =
         VauClientFactoryBuilder.builder()
             .outerClient(JavaHttpClient.from(outerVauClient))
-            .isPu(isPu)
+            .isPu(config.isPu())
             .withInsecureTrustValidator()
             .build();
 
@@ -95,7 +92,7 @@ public class Main {
     proxyServer =
         Undertow.builder()
             // TODO: configurable
-            .addHttpListener(7777, "localhost")
+            .addHttpListener(config.listenPort(), "localhost")
             .setIoThreads(2)
             .setWorkerThreads(4)
             .setHandler(handler)
@@ -103,10 +100,12 @@ public class Main {
 
     proxyServer.start();
 
-    var addr = proxyServer.getListenerInfo().get(0).getAddress();
+    var listener = proxyServer.getListenerInfo().get(0);
+    var addr = (InetSocketAddress) listener.getAddress();
     log.info("VAU proxy started at {}", addr);
 
     Signal.handle(new Signal("INT"), signal -> startedCount.countDown());
+    return new ServerInfo(addr);
   }
 
   public void stop() {

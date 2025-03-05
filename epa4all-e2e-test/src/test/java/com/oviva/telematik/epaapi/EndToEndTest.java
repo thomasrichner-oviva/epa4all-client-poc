@@ -1,8 +1,10 @@
 package com.oviva.telematik.epaapi;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
+import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.vau.epa4all.client.authz.AuthorizationService;
 import com.oviva.telematik.vau.epa4all.client.info.InformationService;
 import com.oviva.telematik.vau.epa4all.client.internal.RsaSignatureAdapter;
@@ -45,6 +47,7 @@ class EndToEndTest {
 
   private final Enabler enabler = Enabler.RISE;
   private Main app;
+  private InetSocketAddress vauProxyServerListener = null;
 
   @BeforeEach
   void setUp() {
@@ -52,10 +55,11 @@ class EndToEndTest {
     if (enabler == Enabler.EPA_DEPLOYMENT) {
       proxy = null;
     }
-    app = new Main(new Main.Configuration(proxy));
+    app = new Main(new Main.Configuration(proxy, 0, false));
 
     // VAU base URI is dynamic!
-    app.start();
+    var si = app.start();
+    vauProxyServerListener = si.listenAddress();
   }
 
   @AfterEach
@@ -64,7 +68,7 @@ class EndToEndTest {
   }
 
   @Test
-  void e2e() throws Exception {
+  void e2e_RU() throws Exception {
 
     // ----
     // Prerequisites:
@@ -83,7 +87,7 @@ class EndToEndTest {
     //    var insurantId = "Z987654321";
     //        var insurantId = "X110467329"; // RISE
     //    final var insurantId = "X110580673"; // fBeta
-    final var insurantId = "X229678976"; // fBeta
+    //    final var insurantId = "X229678976"; // fBeta
     // X229678976 // RISE with access from Oviva's SMB-C
 
     // Oviva
@@ -91,11 +95,119 @@ class EndToEndTest {
     // KVNR: X110467329
     // KVNR: X110485695
     // KVNR: X110406713
+    // KVNR: U903747974 Frankieboy
+    //    final var insurantId = "U903747974";
+    // KVNR: X110661675 (authorized & FdV)
+    final var insurantId = "X110661675";
 
     var providers =
         List.of(InformationService.EpaProvider.IBM, InformationService.EpaProvider.BITMARCK);
     var informationService =
         new InformationService(outerHttpClient, InformationService.Environment.DEV, providers);
+
+    var endpoint =
+        informationService
+            .findAccountEndpoint(insurantId)
+            .orElseGet(
+                () -> {
+                  fail("KVNR %s doesnt exist".formatted(insurantId));
+                  return null;
+                });
+
+    // ----
+    // 2. set-up client to proxy through the VAU tunnel
+
+    // client -> proxy-server (vau-tunnel wrapper, forward proxy) -> jumphost proxy -> RISE VPN
+    // (wireguard) -> Telematikinfra
+
+    var vauProxyServerAddr = new InetSocketAddress("127.0.0.1", vauProxyServerListener.getPort());
+
+    // HTTP client used to communicate inside the VAU tunnel
+    var innerHttpClient =
+        HttpClient.newBuilder()
+            // this is the local VAU termination proxy
+            .proxy(ProxySelector.of(vauProxyServerAddr))
+            // no redirects, wee need to deal with redirects from authorization directly
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .connectTimeout(Duration.ofSeconds(7))
+            // within the VAU tunnel HTTP/1.1 is preferred
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
+
+    // we need to downgrade HTTPS requests to HTTP, otherwise the proxy can't deal with the requests
+    var innerVauClient = new DowngradeHttpClient(JavaHttpClient.from(innerHttpClient));
+
+    var cards = konnektorService.listSmcbCards();
+    assumeTrue(!cards.isEmpty(), "no cards found");
+    var card = cards.get(0);
+
+    var signer = new RsaSignatureAdapter(konnektorService);
+    var authorizationService =
+        new AuthorizationService(innerVauClient, outerHttpClient, endpoint, signer);
+
+    // ----
+    // 3. authenticate the client-side of the VAU tunnel
+    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(card, insurantId));
+
+    // => tunnel is now authorized, let the fun begin
+
+    // ----
+    // 4. interact with the document management service
+
+    // we need to downgrade the URI we got, this goes through the VAU tunnel
+    var phrEndpoint = downgradeUri(endpoint).resolve("/epa/xds-document/api/I_Document_Management");
+
+    // setup the soap client to go via VAU proxy
+    var client =
+        new SoapClientFactory(
+            new ClientConfiguration(
+                new InetSocketAddress("localhost", vauProxyServerListener.getPort())));
+    var phrManagementPort = client.getIDocumentManagementPort(phrEndpoint);
+    var phrService = new PhrService(phrManagementPort);
+
+    // NOTE: as of now only FHIR seems to work, specifically PDF/A don't work
+    var document = buildFhirDocument(card, insurantId);
+
+    assertDoesNotThrow(() -> phrService.writeDocument(insurantId, document));
+
+    System.out.println("Success!");
+  }
+
+  private Document buildFhirDocument(SmcbCard author, String insurantId) {
+
+    var id = UUID.randomUUID();
+    var mediaType = "application/fhir+xml";
+    var body = ExportFixture.fhirDocumentWithId(id); // the bundle ID must be different
+    var authorInstitution = new AuthorInstitution(author.holderName(), author.telematikId());
+
+    return buildDocumentPayload(id, insurantId, authorInstitution, mediaType, body);
+  }
+
+  @Test
+  void e2e_PU() throws Exception {
+
+    // ----
+    // Prerequisites:
+    // - build diga-epa-lib from: https://github.com/oviva-ag/diga-epa-lib/tree/feature/epa-3-0
+
+    var konnektorService = ProdKonnektors.riseKonnektor_PU();
+
+    // client -> jumphost proxy -> (Internet || ( RISE VPN -> Telematikinfra) )
+    var outerHttpClient = buildOuterHttpClient();
+
+    // ----
+    // 1. find the enabler hosting the ePA for the given insurant (Krankenversicherten Nummber -
+    // KVNR)
+
+    // Oviva
+    // those are not authorized in the FdV
+    // KVNR: U903747974 Frankieboy
+    final var insurantId = "U903747974";
+
+    var providers =
+        List.of(InformationService.EpaProvider.IBM, InformationService.EpaProvider.BITMARCK);
+    var informationService =
+        new InformationService(outerHttpClient, InformationService.Environment.PU, providers);
 
     var endpoint =
         informationService
@@ -129,13 +241,15 @@ class EndToEndTest {
     // we need to downgrade HTTPS requests to HTTP, otherwise the proxy can't deal with the requests
     var innerVauClient = new DowngradeHttpClient(JavaHttpClient.from(innerHttpClient));
 
+    var card = konnektorService.listSmcbCards().get(0);
+
     var signer = new RsaSignatureAdapter(konnektorService);
     var authorizationService =
         new AuthorizationService(innerVauClient, outerHttpClient, endpoint, signer);
 
     // ----
     // 3. authenticate the client-side of the VAU tunnel
-    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(insurantId));
+    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(card, insurantId));
 
     // => tunnel is now authorized, let the fun begin
 
@@ -151,10 +265,10 @@ class EndToEndTest {
     var phrManagementPort = client.getIDocumentManagementPort(phrEndpoint);
     var phrService = new PhrService(phrManagementPort);
 
-    // Oviva Testkarte SMC-B
     // TODO: read from SMC-B
-    var institutionName = "DiGA-Hersteller und Anbieter Prof. Dr. Tina Gräfin CesaTEST-ONLY";
-    var telematikId = "9-SMC-B-Testkarte-883110000145356";
+    var institutionName = card.holderName(); // "Oviva Direkt für Adipositas";
+    var telematikId = card.telematikId(); // "9-2.282.10000107";
+
     var authorInstitution = new AuthorInstitution(institutionName, telematikId);
 
     // NOTE: as of now only FHIR seems to work, specifically PDF/A don't work
