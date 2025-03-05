@@ -224,7 +224,7 @@ class EndToEndTest {
     // client -> proxy-server (vau-tunnel wrapper, forward proxy) -> jumphost proxy -> RISE VPN
     // (wireguard) -> Telematikinfra
 
-    var vauProxyServerAddr = new InetSocketAddress("127.0.0.1", 7777);
+    var vauProxyServerAddr = new InetSocketAddress("127.0.0.1", vauProxyServerListener.getPort());
 
     // HTTP client used to communicate inside the VAU tunnel
     var innerHttpClient =
@@ -261,27 +261,18 @@ class EndToEndTest {
 
     // setup the soap client to go via VAU proxy
     var client =
-        new SoapClientFactory(new ClientConfiguration(new InetSocketAddress("localhost", 7777)));
+        new SoapClientFactory(new ClientConfiguration(new InetSocketAddress("localhost", vauProxyServerListener.getPort())));
     var phrManagementPort = client.getIDocumentManagementPort(phrEndpoint);
     var phrService = new PhrService(phrManagementPort);
 
-    // TODO: read from SMC-B
-    var institutionName = card.holderName(); // "Oviva Direkt für Adipositas";
-    var telematikId = card.telematikId(); // "9-2.282.10000107";
-
-    var authorInstitution = new AuthorInstitution(institutionName, telematikId);
-
     // NOTE: as of now only FHIR seems to work, specifically PDF/A don't work
-    var id = UUID.randomUUID();
-    var mediaType = "application/fhir+xml";
-    var body = ExportFixture.fhirDocumentWithId(id); // the bundle ID must be different
-
-    var document = buildDocumentPayload(id, insurantId, authorInstitution, mediaType, body);
+    var document = buildFhirDocument(card, insurantId);
 
     assertDoesNotThrow(() -> phrService.writeDocument(insurantId, document));
 
     System.out.println("Success!");
   }
+
 
   private URI downgradeUri(URI u) {
 
