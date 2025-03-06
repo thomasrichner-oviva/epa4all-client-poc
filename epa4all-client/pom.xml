@@ -13,19 +13,6 @@
   <properties></properties>
   <dependencies>
     <dependency>
-      <groupId>com.oviva.epa</groupId>
-      <artifactId>diga-epa-client</artifactId>
-      <version>0.0.1</version>
-      <exclusions>
-        <exclusion>
-          <!-- interfers with the VAU crypto requirements -->
-          <groupId>org.bouncycastle</groupId>
-          <artifactId>*</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>

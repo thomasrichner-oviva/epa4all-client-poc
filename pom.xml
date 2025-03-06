@@ -12,6 +12,7 @@
     <module>epa4all-e2e-test</module>
     <module>epa4all-phr-client</module>
     <module>epa4all-vau-client</module>
+    <module>konnektor</module>
     <module>vau</module>
   </modules>
 
@@ -24,6 +25,10 @@
     <spotless.version>2.43.0</spotless.version>
     <slf4j.version>2.0.16</slf4j.version>
     <apache-cxf.version>4.0.5</apache-cxf.version>
+    <cxf-xjc.version>4.0.0</cxf-xjc.version>
+    <xml.bind.jaxb.version>2.3.1</xml.bind.jaxb.version>
+    <jaxb.fluent.api.version>3.0</jaxb.fluent.api.version>
+    <bouncycastle.version>1.80</bouncycastle.version>
   </properties>
 
   <dependencyManagement>
@@ -31,13 +36,36 @@
       <dependency>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk18on</artifactId>
-        <version>1.78.1</version>
+        <version>${bouncycastle.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.bouncycastle</groupId>
+        <artifactId>bcutil-jdk18on</artifactId>
+        <version>${bouncycastle.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.sun.xml.bind</groupId>
+        <artifactId>jaxb-impl</artifactId>
+        <version>4.0.5</version>
+      </dependency>
+
       <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
         <version>1.18.34</version>
         <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-annotations</artifactId>
+        <version>4.8.6</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.google.code.findbugs</groupId>
+            <artifactId>jsr305</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -102,9 +130,10 @@
       </dependency>
       <dependency>
         <groupId>org.mockito</groupId>
-        <artifactId>mockito-core</artifactId>
+        <artifactId>mockito-bom</artifactId>
         <version>5.14.2</version>
-        <scope>test</scope>
+        <type>pom</type>
+        <scope>import</scope>
       </dependency>
 
     </dependencies>

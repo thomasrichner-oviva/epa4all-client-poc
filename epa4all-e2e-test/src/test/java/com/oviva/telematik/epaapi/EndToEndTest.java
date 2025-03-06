@@ -70,11 +70,6 @@ class EndToEndTest {
   @Test
   void e2e_RU() throws Exception {
 
-    // ----
-    // Prerequisites:
-    // - build diga-epa-lib from: https://github.com/oviva-ag/diga-epa-lib/tree/feature/epa-3-0
-    // - install https://github.com/gematik/lib-ihe-xds/tree/2.0.2 locally
-
     var konnektorService = TestKonnektors.riseKonnektor_RU();
 
     // client -> jumphost proxy -> (Internet || ( RISE VPN -> Telematikinfra) )
@@ -184,10 +179,6 @@ class EndToEndTest {
 
   @Test
   void e2e_PU() throws Exception {
-
-    // ----
-    // Prerequisites:
-    // - build diga-epa-lib from: https://github.com/oviva-ag/diga-epa-lib/tree/feature/epa-3-0
 
     var konnektorService = ProdKonnektors.riseKonnektor_PU();
 

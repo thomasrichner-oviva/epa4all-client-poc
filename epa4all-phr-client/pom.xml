@@ -11,9 +11,6 @@
   <artifactId>epa4all-phr-client</artifactId>
 
   <properties>
-    <cxf-xjc.version>4.0.0</cxf-xjc.version>
-    <xml.bind.jaxb.version>2.3.1</xml.bind.jaxb.version>
-    <jaxb.fluent.api.version>3.0</jaxb.fluent.api.version>
     <generated.sources.path>${project.build.directory}/generated-sources</generated.sources.path>
     <schema.root.path>${project.basedir}/src/main/resources/schemas</schema.root.path>
     <binding.path>${project.basedir}/src/main/binding</binding.path>

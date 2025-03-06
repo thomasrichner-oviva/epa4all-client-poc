@@ -20,3 +20,4 @@ port_forward_*.sh
 */ProdKonnektors.java
 pom.xml.versionsBackup
 .vscode/
+.flattened-pom.xml
