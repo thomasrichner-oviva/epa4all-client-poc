@@ -1,47 +1,29 @@
 package com.oviva.telematik.epa4all.client.internal;
 
-import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
-import org.junit.jupiter.api.Test;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
-import java.net.http.HttpClient;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.time.Duration;
-
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.net.InetSocketAddress;
+import org.junit.jupiter.api.Test;
+
 class E2eEpa4AllClientImplTest {
+
+  private static final String KONNEKTOR_PROXY_HOST = "127.0.0.1";
+  private static final int KONNEKTOR_PROXY_PORT = 3128;
 
   @Test
   void writeDocument() {
 
+    try (var cf =
+        Epa4AllClientFactory.newFactory(
+            TestKonnektors.riseKonnektor_RU(),
+            new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT))) {
 
-    var client = new Epa4AllClientImpl()
+      final var insurantId = "X110661675";
 
+      var client = cf.newClient();
 
-  }
-
-  private HttpClient buildOuterHttpClient() {
-
-    SSLContext sslContext = null;
-    try {
-      sslContext = SSLContext.getInstance("TLSv1.3");
-      sslContext.init(null, new TrustManager[] {new NaiveTrustManager()}, null);
-    } catch (KeyManagementException | NoSuchAlgorithmException e) {
-      throw new RuntimeException(e);
+      var document = ExportFixture.buildFhirDocument(client.authorInstitution(), insurantId);
+      client.writeDocument(insurantId, document);
     }
-
-    return HttpClient.newBuilder()
-            // TODO: use proper truststore
-            .sslContext(sslContext)
-            // Returned URLs actually need to be resolved via the
-            // proxy, their FQDN is only resolved within the TI
-            .proxy(ProxySelector.of(new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT)))
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
   }
 }

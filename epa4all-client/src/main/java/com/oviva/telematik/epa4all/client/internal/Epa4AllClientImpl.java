@@ -11,11 +11,6 @@ import com.oviva.telematik.vau.epa4all.client.info.InformationService;
 import de.gematik.epa.ihe.model.document.Document;
 import de.gematik.epa.ihe.model.simple.AuthorInstitution;
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import java.net.InetSocketAddress;
-import java.net.ProxySelector;
-import java.net.http.HttpClient;
-import java.time.Duration;
 import java.util.UUID;
 
 public class Epa4AllClientImpl implements Epa4AllClient {

@@ -72,7 +72,7 @@ public class AuthorizationService {
     this.rsaSignatureService = rsaSignatureService;
   }
 
-  public void authorizeVauWithSmcB(SmcbCard card,URI vauEndpoint, String insurantId) {
+  public void authorizeVauWithSmcB(SmcbCard card, URI vauEndpoint, String insurantId) {
 
     var nonceRes = getNonce(vauEndpoint, insurantId);
     var nonce = nonceRes.nonce();
@@ -105,7 +105,8 @@ public class AuthorizationService {
     sendAuthorizationCodeSmbC(vauEndpoint, authorizationCode, signedClientAttest, insurantId);
   }
 
-  private AuthorizationRequestResponse sendAuthorizationRequestSmcB(URI vauEndpoint, String insurantId) {
+  private AuthorizationRequestResponse sendAuthorizationRequestSmcB(
+      URI vauEndpoint, String insurantId) {
 
     var path = "/epa/authz/v1/send_authorization_request_sc";
     var uri = vauEndpoint.resolve(path);
@@ -533,8 +534,8 @@ public class AuthorizationService {
     }
   }
 
-  private void sendAuthorizationCodeSmbC(URI vauEndpoint,
-      String authorizationCode, String clientAttest, String insurantId) {
+  private void sendAuthorizationCodeSmbC(
+      URI vauEndpoint, String authorizationCode, String clientAttest, String insurantId) {
 
     // A_24766
 

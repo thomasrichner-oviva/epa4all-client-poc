@@ -1,6 +1,5 @@
-package com.oviva.telematik.epaapi;
+package com.oviva.telematik.epa4all.client.internal;
 
-import com.oviva.epa.client.model.SmcbCard;
 import de.gematik.epa.conversion.internal.enumerated.*;
 import de.gematik.epa.ihe.model.Author;
 import de.gematik.epa.ihe.model.document.Document;
@@ -776,12 +775,11 @@ public class ExportFixture {
         .getBytes(StandardCharsets.UTF_8);
   }
 
-  public static Document buildFhirDocument(SmcbCard author, String insurantId) {
+  public static Document buildFhirDocument(AuthorInstitution authorInstitution, String insurantId) {
 
     var id = UUID.randomUUID();
     var mediaType = "application/fhir+xml";
     var body = ExportFixture.fhirDocumentWithId(id); // the bundle ID must be different
-    var authorInstitution = new AuthorInstitution(author.holderName(), author.telematikId());
 
     return buildDocumentPayload(id, insurantId, authorInstitution, mediaType, body);
   }

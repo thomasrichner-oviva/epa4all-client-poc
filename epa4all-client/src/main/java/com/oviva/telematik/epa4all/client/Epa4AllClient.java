@@ -3,7 +3,6 @@ package com.oviva.telematik.epa4all.client;
 import de.gematik.epa.ihe.model.document.Document;
 import de.gematik.epa.ihe.model.simple.AuthorInstitution;
 import edu.umd.cs.findbugs.annotations.NonNull;
-
 import java.util.UUID;
 
 public interface Epa4AllClient {

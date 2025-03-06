@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
-import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.vau.epa4all.client.authz.AuthorizationService;
 import com.oviva.telematik.vau.epa4all.client.info.InformationService;
 import com.oviva.telematik.vau.epa4all.client.internal.RsaSignatureAdapter;
@@ -13,15 +12,10 @@ import com.oviva.telematik.vau.httpclient.internal.DowngradeHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
 import com.oviva.telematik.vau.proxy.Main;
 import de.gematik.epa.conversion.internal.enumerated.*;
-import de.gematik.epa.ihe.model.Author;
-import de.gematik.epa.ihe.model.document.Document;
-import de.gematik.epa.ihe.model.document.DocumentMetadata;
-import de.gematik.epa.ihe.model.simple.AuthorInstitution;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.security.*;
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.*;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
@@ -119,28 +113,14 @@ class EndToEndTest {
 
     var vauProxyServerAddr = new InetSocketAddress("127.0.0.1", vauProxyServerListener.getPort());
 
-    // HTTP client used to communicate inside the VAU tunnel
-    var innerHttpClient =
-        HttpClient.newBuilder()
-            // this is the local VAU termination proxy
-            .proxy(ProxySelector.of(vauProxyServerAddr))
-            // no redirects, wee need to deal with redirects from authorization directly
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .connectTimeout(Duration.ofSeconds(7))
-            // within the VAU tunnel HTTP/1.1 is preferred
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();
-
-    // we need to downgrade HTTPS requests to HTTP, otherwise the proxy can't deal with the requests
-    var innerVauClient = new DowngradeHttpClient(JavaHttpClient.from(innerHttpClient));
+    var innerVauClient = buildVauHttpClient(vauProxyServerAddr);
 
     var cards = konnektorService.listSmcbCards();
     assumeTrue(!cards.isEmpty(), "no cards found");
     var card = cards.get(0);
 
     var signer = new RsaSignatureAdapter(konnektorService);
-    var authorizationService =
-        new AuthorizationService(innerVauClient, outerHttpClient, signer);
+    var authorizationService = new AuthorizationService(innerVauClient, outerHttpClient, signer);
 
     // ----
     // 3. authenticate the client-side of the VAU tunnel
@@ -168,6 +148,25 @@ class EndToEndTest {
     assertDoesNotThrow(() -> phrService.writeDocument(insurantId, document));
 
     System.out.println("Success!");
+  }
+
+  private com.oviva.telematik.vau.httpclient.HttpClient buildVauHttpClient(
+      InetSocketAddress vauProxyServerAddr) {
+
+    // HTTP client used to communicate inside the VAU tunnel
+    var innerHttpClient =
+        HttpClient.newBuilder()
+            // this is the local VAU termination proxy
+            .proxy(ProxySelector.of(vauProxyServerAddr))
+            // no redirects, wee need to deal with redirects from authorization directly
+            .followRedirects(HttpClient.Redirect.NEVER)
+            .connectTimeout(Duration.ofSeconds(7))
+            // within the VAU tunnel HTTP/1.1 is preferred
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
+
+    // we need to downgrade HTTPS requests to HTTP, otherwise the proxy can't deal with the requests
+    return new DowngradeHttpClient(JavaHttpClient.from(innerHttpClient));
   }
 
   private URI downgradeUri(URI u) {
@@ -208,5 +207,4 @@ class EndToEndTest {
         .connectTimeout(Duration.ofSeconds(10))
         .build();
   }
-
 }

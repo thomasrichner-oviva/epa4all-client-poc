@@ -13,11 +13,6 @@ import com.oviva.telematik.vau.epa4all.client.internal.RsaSignatureAdapter;
 import com.oviva.telematik.vau.httpclient.internal.DowngradeHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
 import com.oviva.telematik.vau.proxy.Main;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.http.HttpClient;
@@ -25,12 +20,16 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class ClientFactory implements AutoCloseable {
+public class Epa4AllClientFactory implements AutoCloseable {
 
   private static final String LOCALHOST = "127.0.0.1";
 
-  private static Logger log = LoggerFactory.getLogger(ClientFactory.class);
+  private static Logger log = LoggerFactory.getLogger(Epa4AllClientFactory.class);
   private final InetSocketAddress konnektorProxyAddress;
   private final Main proxyServer;
   private final SoapClientFactory client;
@@ -38,7 +37,7 @@ public class ClientFactory implements AutoCloseable {
   private final InformationService informationService;
   private final SmcbCard card;
 
-  public ClientFactory(
+  public Epa4AllClientFactory(
       InetSocketAddress konnektorProxyAddress,
       Main proxyServer,
       SoapClientFactory client,
@@ -53,7 +52,7 @@ public class ClientFactory implements AutoCloseable {
     this.card = card;
   }
 
-  public static ClientFactory newFactory(
+  public static Epa4AllClientFactory newFactory(
       KonnektorService konnektorService, InetSocketAddress konnektorProxyAddress) {
 
     var outerHttpClient = buildOuterHttpClient(konnektorProxyAddress);
@@ -89,7 +88,7 @@ public class ClientFactory implements AutoCloseable {
             new ClientConfiguration(
                 new InetSocketAddress(LOCALHOST, vauProxyServerListener.getPort())));
 
-    return new ClientFactory(
+    return new Epa4AllClientFactory(
         konnektorProxyAddress, proxyServer, client, authorizationService, informationService, card);
   }
 
@@ -139,7 +138,7 @@ public class ClientFactory implements AutoCloseable {
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     proxyServer.stop();
   }
 }
