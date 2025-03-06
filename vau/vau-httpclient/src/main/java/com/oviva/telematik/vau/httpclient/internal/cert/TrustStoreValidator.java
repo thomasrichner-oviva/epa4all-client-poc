@@ -159,6 +159,10 @@ public class TrustStoreValidator implements TrustValidator {
       byte[] ocspResponseDer)
       throws ValidationException {
 
+    if (ocspResponseDer == null || ocspResponseDer.length == 0) {
+      throw new ValidationException("empty OCSP response");
+    }
+
     // can we trust the issuer of the OCSP response?
     verifyTrustChainAgainstRoot(vauIssuerCertificate, certificateChain);
 

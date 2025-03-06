@@ -19,8 +19,11 @@ import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.List;
+
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled("used to update trust-roots")
 class DownloadCaRootsTest {
 
   // https://gemspec.gematik.de/docs/gemSpec/gemSpec_Krypt/latest/#5.1

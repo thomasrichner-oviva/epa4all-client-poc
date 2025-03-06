@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.List;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
-import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -26,7 +25,7 @@ class KonnektorServiceAcceptanceTest {
   private static final String USER_AGENT = "TEST/0.0.1";
   private static final String TI_KONNEKTOR_URI = "https://10.156.145.103:443";
   private static final String PROXY_ADDRESS = "127.0.0.1";
-  private static final String KEYSTORE_FILE = "keys/vKon_Client_172.026.002.035.p12";
+  private static final String KEYSTORE_FILE = "/keys/vKon_Client_172.026.002.035.p12";
   private static final String KEYSTORE_PASSWORD = "0000";
   private static final String WORKPLACE_ID = "a";
   private static final String CLIENT_SYSTEM_ID = "c";
@@ -124,13 +123,10 @@ class KonnektorServiceAcceptanceTest {
 
   private KeyStore loadKeyStore()
       throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException {
-
-    var is = IOUtils.resourceToURL(KEYSTORE_FILE, this.getClass().getClassLoader()).openStream();
-
-    var keyStore = KeyStore.getInstance("PKCS12");
-
-    keyStore.load(is, KEYSTORE_PASSWORD.toCharArray());
-
-    return keyStore;
+    try (var is = this.getClass().getResourceAsStream(KEYSTORE_FILE)) {
+      var keyStore = KeyStore.getInstance("PKCS12");
+      keyStore.load(is, KEYSTORE_PASSWORD.toCharArray());
+      return keyStore;
+    }
   }
 }

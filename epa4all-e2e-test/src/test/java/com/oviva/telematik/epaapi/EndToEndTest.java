@@ -1,5 +1,6 @@
 package com.oviva.telematik.epaapi;
 
+import static com.oviva.telematik.epaapi.ExportFixture.buildFhirDocument;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
@@ -28,8 +29,10 @@ import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled("e2e")
 class EndToEndTest {
 
   static {
@@ -137,109 +140,11 @@ class EndToEndTest {
 
     var signer = new RsaSignatureAdapter(konnektorService);
     var authorizationService =
-        new AuthorizationService(innerVauClient, outerHttpClient, endpoint, signer);
+        new AuthorizationService(innerVauClient, outerHttpClient, signer);
 
     // ----
     // 3. authenticate the client-side of the VAU tunnel
-    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(card, insurantId));
-
-    // => tunnel is now authorized, let the fun begin
-
-    // ----
-    // 4. interact with the document management service
-
-    // we need to downgrade the URI we got, this goes through the VAU tunnel
-    var phrEndpoint = downgradeUri(endpoint).resolve("/epa/xds-document/api/I_Document_Management");
-
-    // setup the soap client to go via VAU proxy
-    var client =
-        new SoapClientFactory(
-            new ClientConfiguration(
-                new InetSocketAddress("localhost", vauProxyServerListener.getPort())));
-    var phrManagementPort = client.getIDocumentManagementPort(phrEndpoint);
-    var phrService = new PhrService(phrManagementPort);
-
-    // NOTE: as of now only FHIR seems to work, specifically PDF/A don't work
-    var document = buildFhirDocument(card, insurantId);
-
-    assertDoesNotThrow(() -> phrService.writeDocument(insurantId, document));
-
-    System.out.println("Success!");
-  }
-
-  private Document buildFhirDocument(SmcbCard author, String insurantId) {
-
-    var id = UUID.randomUUID();
-    var mediaType = "application/fhir+xml";
-    var body = ExportFixture.fhirDocumentWithId(id); // the bundle ID must be different
-    var authorInstitution = new AuthorInstitution(author.holderName(), author.telematikId());
-
-    return buildDocumentPayload(id, insurantId, authorInstitution, mediaType, body);
-  }
-
-  @Test
-  void e2e_PU() throws Exception {
-
-    var konnektorService = ProdKonnektors.riseKonnektor_PU();
-
-    // client -> jumphost proxy -> (Internet || ( RISE VPN -> Telematikinfra) )
-    var outerHttpClient = buildOuterHttpClient();
-
-    // ----
-    // 1. find the enabler hosting the ePA for the given insurant (Krankenversicherten Nummber -
-    // KVNR)
-
-    // Oviva
-    // those are not authorized in the FdV
-    // KVNR: U903747974 Frankieboy
-    final var insurantId = "U903747974";
-
-    var providers =
-        List.of(InformationService.EpaProvider.IBM, InformationService.EpaProvider.BITMARCK);
-    var informationService =
-        new InformationService(outerHttpClient, InformationService.Environment.PU, providers);
-
-    var endpoint =
-        informationService
-            .findAccountEndpoint(insurantId)
-            .orElseGet(
-                () -> {
-                  fail("KVNR %s doesnt exist".formatted(insurantId));
-                  return null;
-                });
-
-    // ----
-    // 2. set-up client to proxy through the VAU tunnel
-
-    // client -> proxy-server (vau-tunnel wrapper, forward proxy) -> jumphost proxy -> RISE VPN
-    // (wireguard) -> Telematikinfra
-
-    var vauProxyServerAddr = new InetSocketAddress("127.0.0.1", vauProxyServerListener.getPort());
-
-    // HTTP client used to communicate inside the VAU tunnel
-    var innerHttpClient =
-        HttpClient.newBuilder()
-            // this is the local VAU termination proxy
-            .proxy(ProxySelector.of(vauProxyServerAddr))
-            // no redirects, wee need to deal with redirects from authorization directly
-            .followRedirects(HttpClient.Redirect.NEVER)
-            .connectTimeout(Duration.ofSeconds(7))
-            // within the VAU tunnel HTTP/1.1 is preferred
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();
-
-    // we need to downgrade HTTPS requests to HTTP, otherwise the proxy can't deal with the requests
-    var innerVauClient = new DowngradeHttpClient(JavaHttpClient.from(innerHttpClient));
-
-    var card = konnektorService.listSmcbCards().get(0);
-
-    var signer = new RsaSignatureAdapter(konnektorService);
-    var authorizationService =
-        new AuthorizationService(innerVauClient, outerHttpClient, endpoint, signer);
-
-    // ----
-    // 3. authenticate the client-side of the VAU tunnel
-    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(card, insurantId));
+    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(card, endpoint, insurantId));
 
     // => tunnel is now authorized, let the fun begin
 
@@ -304,63 +209,4 @@ class EndToEndTest {
         .build();
   }
 
-  private Document buildDocumentPayload(
-      UUID id, String kvnr, AuthorInstitution authorInstitution, String mimeType, byte[] contents) {
-
-    // IMPORTANT: Without the urn prefix we can't replace it later
-    var documentUuid = "urn:uuid:" + id;
-
-    return new Document(
-        contents,
-        new DocumentMetadata(
-            List.of(
-                // Telematik-ID der DiGA^Name der DiGA (Name der
-                // Verordnungseinheit)^Oviva-AG^^^^^^&<OID für DiGAs, wie in professionOID>&ISO
-                // https://gemspec.gematik.de/docs/gemSpec/gemSpec_DM_ePA_EU-Pilot/gemSpec_DM_ePA_EU-Pilot_V1.53.1/#2.1.4.3.1
-                new Author(
-                    authorInstitution.identifier(),
-                    "Oviva Direkt für Adipositas",
-                    "Oviva AG",
-                    "",
-                    "",
-                    "",
-                    // professionOID for DiGA:
-                    // https://gemspec.gematik.de/docs/gemSpec/gemSpec_OID/gemSpec_OID_V3.19.0/#3.5.1.3
-                    // TODO read this from the SMC-B, see
-                    // com.oviva.epa.client.internal.svc.utils.CertificateUtils::getProfessionInfoFromCertificate
-                    "1.2.276.0.76.4.282", // OID
-                    // Der identifier in AuthorInstitution muss eine gültige TelematikId sein, so
-                    // wie sie z. B. auf der SMC-B-Karte enthalten ist
-                    List.of(authorInstitution),
-                    List.of("12^^^&amp;1.3.6.1.4.1.19376.3.276.1.5.13&amp;ISO"),
-                    List.of("25^^^&1.3.6.1.4.1.19376.3.276.1.5.11&ISO"),
-                    List.of("^^Internet^telematik-infrastructure@oviva.com"))),
-            "AVAILABLE",
-            List.of(ConfidentialityCode.NORMAL.getValue()),
-            ClassCode.DURCHFUEHRUNGSPROTOKOLL.getValue(),
-            "DiGA MIO-Beispiel eines Dokument von Referenzimplementierung geschickt (Simple Roundtrip)",
-            LocalDateTime.now().minusHours(3),
-            documentUuid,
-            List.of(
-                EventCode.VIRTUAL_ENCOUNTER.getValue(), EventCode.PATIENTEN_MITGEBRACHT.getValue()),
-            FormatCode.DIGA.getValue(),
-            "",
-            HealthcareFacilityCode.PATIENT_AUSSERHALB_BETREUUNG.getValue(),
-            "de-DE",
-            "",
-            mimeType,
-            PracticeSettingCode.PATIENT_AUSSERHALB_BETREUUNG.getValue(),
-            List.of(),
-            null,
-            null,
-            contents.length,
-            "Protokoll %s.xml".formatted(id),
-            TypeCode.PATIENTENEIGENE_DOKUMENTE.getValue(),
-            documentUuid,
-            "Oviva_DiGA_Export_%s".formatted(id),
-            "",
-            "",
-            kvnr),
-        null);
-  }
 }

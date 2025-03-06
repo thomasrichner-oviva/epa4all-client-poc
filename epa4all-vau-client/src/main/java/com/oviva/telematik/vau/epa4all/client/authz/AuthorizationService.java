@@ -59,7 +59,6 @@ public class AuthorizationService {
 
   private static final JWSAlgorithm JWS_ALG_BS256R1 = new JWSAlgorithm("BP256R1");
 
-  private final URI baseUri;
   private final HttpClient innerHttpClient;
   private final java.net.http.HttpClient outerHttpClient;
   private final RsaSignatureService rsaSignatureService;
@@ -67,20 +66,18 @@ public class AuthorizationService {
   public AuthorizationService(
       HttpClient innerHttpClient,
       java.net.http.HttpClient outerHttpClient,
-      URI baseUri,
       RsaSignatureService rsaSignatureService) {
-    this.baseUri = baseUri;
     this.innerHttpClient = innerHttpClient;
     this.outerHttpClient = outerHttpClient;
     this.rsaSignatureService = rsaSignatureService;
   }
 
-  public void authorizeVauWithSmcB(SmcbCard card, String insurantId) {
+  public void authorizeVauWithSmcB(SmcbCard card,URI vauEndpoint, String insurantId) {
 
-    var nonceRes = getNonce(insurantId);
+    var nonceRes = getNonce(vauEndpoint, insurantId);
     var nonce = nonceRes.nonce();
 
-    var authRes = sendAuthorizationRequestSmcB(insurantId);
+    var authRes = sendAuthorizationRequestSmcB(vauEndpoint, insurantId);
 
     // A_20663-01
     var parsedChallenge = parseAndValidateChallenge(authRes.challenge());
@@ -105,13 +102,13 @@ public class AuthorizationService {
           signedClientAttest);
     }
 
-    sendAuthorizationCodeSmbC(authorizationCode, signedClientAttest, insurantId);
+    sendAuthorizationCodeSmbC(vauEndpoint, authorizationCode, signedClientAttest, insurantId);
   }
 
-  private AuthorizationRequestResponse sendAuthorizationRequestSmcB(String insurantId) {
+  private AuthorizationRequestResponse sendAuthorizationRequestSmcB(URI vauEndpoint, String insurantId) {
 
     var path = "/epa/authz/v1/send_authorization_request_sc";
-    var uri = baseUri.resolve(path);
+    var uri = vauEndpoint.resolve(path);
     var method = "GET";
     var req =
         new HttpClient.Request(
@@ -205,10 +202,10 @@ public class AuthorizationService {
     return Optional.ofNullable(params.get("code"));
   }
 
-  public NonceResponse getNonce(String insurantId) {
+  public NonceResponse getNonce(URI vauEndpoint, String insurantId) {
 
     var path = "/epa/authz/v1/getNonce";
-    var nonceUri = baseUri.resolve(path);
+    var nonceUri = vauEndpoint.resolve(path);
     var method = "GET";
     var req1 =
         new HttpClient.Request(
@@ -536,13 +533,13 @@ public class AuthorizationService {
     }
   }
 
-  private void sendAuthorizationCodeSmbC(
+  private void sendAuthorizationCodeSmbC(URI vauEndpoint,
       String authorizationCode, String clientAttest, String insurantId) {
 
     // A_24766
 
     var path = "/epa/authz/v1/send_authcode_sc";
-    var uri = baseUri.resolve(path);
+    var uri = vauEndpoint.resolve(path);
     var method = "POST";
 
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_FD/latest/#5.5

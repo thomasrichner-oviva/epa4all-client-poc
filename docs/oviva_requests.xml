@@ -1,0 +1,11 @@
+
+POST /epa/xds-document/api/I_Document_Management HTTP/1.1
+POST /epa/xds-document/api/I_Document_Management HTTP/1.1
+accept: */*
+x-insurantid: X110467329
+transfer-encoding: chunked
+content-type: application/soap+xml; action="urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-b"; charset=UTF-8
+user-agent: Apache-CXF/4.0.5
+host: epa-as-2.dev.epa4all.de
+x-useragent: Oviva/0.0.1
+content-length: 9668

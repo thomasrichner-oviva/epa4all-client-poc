@@ -26,7 +26,7 @@ public class PhrService {
     this.documentManagementPort = documentManagementPort;
   }
 
-  public void writeDocument(String insurantId, Document document) {
+  public String writeDocument(String insurantId, Document document) {
 
     var metadata = getSubmissionSetMetadata(document.documentMetadata());
     var docSubmissionRequest =
@@ -36,6 +36,8 @@ public class PhrService {
 
     var res = callWriteDocument(insurantId, req);
     validateResponse(res);
+
+    return res.getRequestId();
   }
 
   private RegistryResponseType callWriteDocument(
@@ -65,7 +67,7 @@ public class PhrService {
         .put(Message.PROTOCOL_HEADERS, new HashMap<>());
   }
 
-  public void replaceDocument(String insurantId, Document document, UUID documentToReplaceId) {
+  public String replaceDocument(String insurantId, Document document, UUID documentToReplaceId) {
     throw new UnsupportedOperationException("not yet implemented");
   }
 

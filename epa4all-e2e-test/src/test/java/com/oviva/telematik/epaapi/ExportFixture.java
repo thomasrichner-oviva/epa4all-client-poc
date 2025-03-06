@@ -1,9 +1,19 @@
 package com.oviva.telematik.epaapi;
 
+import com.oviva.epa.client.model.SmcbCard;
+import de.gematik.epa.conversion.internal.enumerated.*;
+import de.gematik.epa.ihe.model.Author;
+import de.gematik.epa.ihe.model.document.Document;
+import de.gematik.epa.ihe.model.document.DocumentMetadata;
+import de.gematik.epa.ihe.model.simple.AuthorInstitution;
+
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 public class ExportFixture {
+
   public static byte[] fhirDocumentWithId(UUID id) {
     return """
 <Bundle xmlns="http://hl7.org/fhir">
@@ -765,5 +775,75 @@ public class ExportFixture {
 """
         .formatted(id)
         .getBytes(StandardCharsets.UTF_8);
+  }
+
+  public static Document buildFhirDocument(SmcbCard author, String insurantId) {
+
+    var id = UUID.randomUUID();
+    var mediaType = "application/fhir+xml";
+    var body = ExportFixture.fhirDocumentWithId(id); // the bundle ID must be different
+    var authorInstitution = new AuthorInstitution(author.holderName(), author.telematikId());
+
+    return buildDocumentPayload(id, insurantId, authorInstitution, mediaType, body);
+  }
+
+  public static Document buildDocumentPayload(
+      UUID id, String kvnr, AuthorInstitution authorInstitution, String mimeType, byte[] contents) {
+
+    // IMPORTANT: Without the urn prefix we can't replace it later
+    var documentUuid = "urn:uuid:" + id;
+
+    return new Document(
+        contents,
+        new DocumentMetadata(
+            List.of(
+                // Telematik-ID der DiGA^Name der DiGA (Name der
+                // Verordnungseinheit)^Oviva-AG^^^^^^&<OID für DiGAs, wie in professionOID>&ISO
+                // https://gemspec.gematik.de/docs/gemSpec/gemSpec_DM_ePA_EU-Pilot/gemSpec_DM_ePA_EU-Pilot_V1.53.1/#2.1.4.3.1
+                new Author(
+                    authorInstitution.identifier(),
+                    "Oviva Direkt für Adipositas",
+                    "Oviva AG",
+                    "",
+                    "",
+                    "",
+                    // professionOID for DiGA:
+                    // https://gemspec.gematik.de/docs/gemSpec/gemSpec_OID/gemSpec_OID_V3.19.0/#3.5.1.3
+                    // TODO read this from the SMC-B, see
+                    // com.oviva.epa.client.internal.svc.utils.CertificateUtils::getProfessionInfoFromCertificate
+                    "1.2.276.0.76.4.282", // OID
+                    // Der identifier in AuthorInstitution muss eine gültige TelematikId sein, so
+                    // wie sie z. B. auf der SMC-B-Karte enthalten ist
+                    List.of(authorInstitution),
+                    List.of("12^^^&amp;1.3.6.1.4.1.19376.3.276.1.5.13&amp;ISO"),
+                    List.of("25^^^&1.3.6.1.4.1.19376.3.276.1.5.11&ISO"),
+                    List.of("^^Internet^telematik-infrastructure@oviva.com"))),
+            "AVAILABLE",
+            List.of(ConfidentialityCode.NORMAL.getValue()),
+            ClassCode.DURCHFUEHRUNGSPROTOKOLL.getValue(),
+            "DiGA MIO-Beispiel eines Dokument von Referenzimplementierung geschickt (Simple Roundtrip)",
+            LocalDateTime.now().minusHours(3),
+            documentUuid,
+            List.of(
+                EventCode.VIRTUAL_ENCOUNTER.getValue(), EventCode.PATIENTEN_MITGEBRACHT.getValue()),
+            FormatCode.DIGA.getValue(),
+            "",
+            HealthcareFacilityCode.PATIENT_AUSSERHALB_BETREUUNG.getValue(),
+            "de-DE",
+            "",
+            mimeType,
+            PracticeSettingCode.PATIENT_AUSSERHALB_BETREUUNG.getValue(),
+            List.of(),
+            null,
+            null,
+            contents.length,
+            "Protokoll %s.xml".formatted(id),
+            TypeCode.PATIENTENEIGENE_DOKUMENTE.getValue(),
+            documentUuid,
+            "Oviva_DiGA_Export_%s".formatted(id),
+            "",
+            "",
+            kvnr),
+        null);
   }
 }

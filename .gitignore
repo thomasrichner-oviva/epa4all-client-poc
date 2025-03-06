@@ -21,3 +21,4 @@ port_forward_*.sh
 pom.xml.versionsBackup
 .vscode/
 .flattened-pom.xml
+dot_git/
