@@ -1,4 +1,4 @@
-package com.oviva.telematik.vau.epa4all.client.providers;
+package com.oviva.telematik.vau.epa4all.client.authz;
 
 import com.oviva.epa.client.model.SmcbCard;
 

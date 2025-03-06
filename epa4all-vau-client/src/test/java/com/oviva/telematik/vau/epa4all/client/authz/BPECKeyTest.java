@@ -3,9 +3,9 @@ package com.oviva.telematik.vau.epa4all.client.authz;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.nimbusds.jose.*;
-import com.oviva.telematik.vau.epa4all.client.internal.BP256ECDHEncrypter;
-import com.oviva.telematik.vau.epa4all.client.internal.BP256ECKey;
-import com.oviva.telematik.vau.epa4all.client.internal.BrainpoolCurve;
+import com.oviva.telematik.vau.epa4all.client.authz.internal.BP256ECDHEncrypter;
+import com.oviva.telematik.vau.epa4all.client.authz.internal.BP256ECKey;
+import com.oviva.telematik.vau.epa4all.client.authz.internal.BrainpoolCurve;
 import java.security.Security;
 import java.text.ParseException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;

@@ -1,4 +1,4 @@
-package com.oviva.telematik.vau.epa4all.client.internal;
+package com.oviva.telematik.vau.epa4all.client.authz.internal;
 
 import com.nimbusds.jose.jwk.Curve;
 import java.security.spec.ECFieldFp;

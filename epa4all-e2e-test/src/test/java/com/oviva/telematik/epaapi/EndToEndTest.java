@@ -6,12 +6,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
 import com.oviva.telematik.vau.epa4all.client.authz.AuthorizationService;
+import com.oviva.telematik.vau.epa4all.client.authz.internal.RsaSignatureAdapter;
 import com.oviva.telematik.vau.epa4all.client.info.InformationService;
-import com.oviva.telematik.vau.epa4all.client.internal.RsaSignatureAdapter;
 import com.oviva.telematik.vau.httpclient.internal.DowngradeHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
 import com.oviva.telematik.vau.proxy.Main;
-import de.gematik.epa.conversion.internal.enumerated.*;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.security.*;

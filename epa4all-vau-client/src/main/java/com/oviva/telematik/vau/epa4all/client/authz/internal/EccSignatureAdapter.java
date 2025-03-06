@@ -1,8 +1,8 @@
-package com.oviva.telematik.vau.epa4all.client.internal;
+package com.oviva.telematik.vau.epa4all.client.authz.internal;
 
 import com.oviva.epa.client.KonnektorService;
 import com.oviva.epa.client.model.SmcbCard;
-import com.oviva.telematik.vau.epa4all.client.providers.RsaSignatureService;
+import com.oviva.telematik.vau.epa4all.client.authz.RsaSignatureService;
 
 // TODO
 public class EccSignatureAdapter implements RsaSignatureService {

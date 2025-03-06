@@ -15,8 +15,6 @@ import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.vau.epa4all.client.authz.internal.*;
-import com.oviva.telematik.vau.epa4all.client.internal.*;
-import com.oviva.telematik.vau.epa4all.client.providers.RsaSignatureService;
 import com.oviva.telematik.vau.httpclient.HttpClient;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
@@ -139,7 +137,8 @@ public class AuthorizationService {
   private String exchangeEncryptedSignedChallenge(
       URI idpBaseUri, JWEObject encryptedSignedChallenge) {
 
-    // TODO dynamic config
+    // TODO: dynamic config, though as is it is a JWT signed with `alg=BP256R1` which is
+    // non-standard (╯°□°)╯︵ ┻━┻
     // https://idp-ref.app.ti-dienste.de/.well-known/openid-configuration
     // take 'authorization_endpoint'
     var uri = idpBaseUri.resolve("/auth");
@@ -235,7 +234,8 @@ public class AuthorizationService {
     try {
 
       // TODO: fetch from discovery
-      // https://idp-ref.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
+      // RU: https://idp-ref.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
+      // PU: https://idp.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
 
       // https://gemspec.gematik.de/docs/gemILF/gemILF_PS_ePA/gemILF_PS_ePA_V3.2.3/#A_20667-02
       // WTF? Brainpool curves?

@@ -1,6 +1,6 @@
-package com.oviva.telematik.vau.epa4all.client.internal;
+package com.oviva.telematik.vau.epa4all.client.authz.internal;
 
-import static com.oviva.telematik.vau.epa4all.client.internal.BrainpoolCurve.BP_256;
+import static com.oviva.telematik.vau.epa4all.client.authz.internal.BrainpoolCurve.BP_256;
 
 import com.nimbusds.jose.Algorithm;
 import com.nimbusds.jose.JOSEException;

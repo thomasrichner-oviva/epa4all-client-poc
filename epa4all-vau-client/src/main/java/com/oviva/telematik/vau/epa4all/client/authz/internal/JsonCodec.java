@@ -1,4 +1,4 @@
-package com.oviva.telematik.vau.epa4all.client.internal;
+package com.oviva.telematik.vau.epa4all.client.authz.internal;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
