@@ -8,12 +8,11 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>epa4all-client</module>
     <module>epa4all-e2e-test</module>
     <module>epa4all-phr-client</module>
     <module>epa4all-vau-client</module>
-    <module>vau-httpclient</module>
-    <module>vau-lib</module>
-    <module>vau-proxy-server</module>
+    <module>vau</module>
   </modules>
 
   <properties>
