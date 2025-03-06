@@ -118,7 +118,7 @@ class EndToEndTest {
     assumeTrue(!cards.isEmpty(), "no cards found");
     var card = cards.get(0);
 
-    var signer = new RsaSignatureAdapter(konnektorService);
+    var signer = new RsaSignatureAdapter(konnektorService, card);
     var authorizationService = new AuthorizationService(innerVauClient, outerHttpClient, signer);
 
     // ----

@@ -65,7 +65,7 @@ public class Epa4AllClientImpl implements Epa4AllClient {
             .orElseThrow(
                 () -> new ClientException("endpoint for KVNR %s not found".formatted(insurantId)));
 
-    authorizationService.authorizeVauWithSmcB(card, endpoint, insurantId);
+    authorizationService.authorizeVauWithSmcB(endpoint, insurantId);
 
     var phrEndpoint =
         UriMangle.downgradeHttpsUri(endpoint)

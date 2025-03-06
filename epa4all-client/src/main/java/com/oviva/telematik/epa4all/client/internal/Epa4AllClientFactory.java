@@ -30,7 +30,6 @@ public class Epa4AllClientFactory implements AutoCloseable {
   private static final String LOCALHOST = "127.0.0.1";
 
   private static Logger log = LoggerFactory.getLogger(Epa4AllClientFactory.class);
-  private final InetSocketAddress konnektorProxyAddress;
   private final Main proxyServer;
   private final SoapClientFactory client;
   private final AuthorizationService authorizationService;
@@ -38,13 +37,11 @@ public class Epa4AllClientFactory implements AutoCloseable {
   private final SmcbCard card;
 
   public Epa4AllClientFactory(
-      InetSocketAddress konnektorProxyAddress,
       Main proxyServer,
       SoapClientFactory client,
       AuthorizationService authorizationService,
       InformationService informationService,
       SmcbCard card) {
-    this.konnektorProxyAddress = konnektorProxyAddress;
     this.proxyServer = proxyServer;
     this.client = client;
     this.authorizationService = authorizationService;
@@ -80,7 +77,7 @@ public class Epa4AllClientFactory implements AutoCloseable {
     }
     var card = cards.get(0);
 
-    var signer = new RsaSignatureAdapter(konnektorService);
+    var signer = new RsaSignatureAdapter(konnektorService, card);
     var authorizationService = new AuthorizationService(innerVauClient, outerHttpClient, signer);
 
     var client =
@@ -89,7 +86,7 @@ public class Epa4AllClientFactory implements AutoCloseable {
                 new InetSocketAddress(LOCALHOST, vauProxyServerListener.getPort())));
 
     return new Epa4AllClientFactory(
-        konnektorProxyAddress, proxyServer, client, authorizationService, informationService, card);
+        proxyServer, client, authorizationService, informationService, card);
   }
 
   public Epa4AllClient newClient() {

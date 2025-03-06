@@ -13,7 +13,6 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import com.nimbusds.jwt.proc.DefaultJWTProcessor;
-import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.vau.epa4all.client.authz.internal.*;
 import com.oviva.telematik.vau.httpclient.HttpClient;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -70,7 +69,7 @@ public class AuthorizationService {
     this.rsaSignatureService = rsaSignatureService;
   }
 
-  public void authorizeVauWithSmcB(SmcbCard card, URI vauEndpoint, String insurantId) {
+  public void authorizeVauWithSmcB(URI vauEndpoint, String insurantId) {
 
     var nonceRes = getNonce(vauEndpoint, insurantId);
     var nonce = nonceRes.nonce();
@@ -81,7 +80,7 @@ public class AuthorizationService {
     var parsedChallenge = parseAndValidateChallenge(authRes.challenge());
 
     // A_20665-01
-    var encryptedSignedChallenge = encryptAndSignChallenge(card, parsedChallenge);
+    var encryptedSignedChallenge = encryptAndSignChallenge(parsedChallenge);
 
     URI idpBaseUri = null;
     try {
@@ -91,7 +90,7 @@ public class AuthorizationService {
     }
     var authorizationCode = exchangeEncryptedSignedChallenge(idpBaseUri, encryptedSignedChallenge);
 
-    var signedClientAttest = attestClient(card, nonce).serialize();
+    var signedClientAttest = attestClient(nonce).serialize();
 
     if (log.isDebugEnabled()) {
       log.atDebug().log(
@@ -225,11 +224,11 @@ public class AuthorizationService {
     return JsonCodec.readBytes(res.body(), NonceResponse.class);
   }
 
-  private JWEObject encryptAndSignChallenge(@NonNull SmcbCard card, @NonNull SignedJWT challenge) {
+  private JWEObject encryptAndSignChallenge(@NonNull SignedJWT challenge) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
 
     var expiry = expiryFromChallengeBody(challenge);
-    var payload = signChallenge(card, challenge.serialize());
+    var payload = signChallenge(challenge.serialize());
 
     try {
 
@@ -319,12 +318,12 @@ public class AuthorizationService {
     return new JWEObject(jweHeader, jweBody);
   }
 
-  private SignedJWT signChallenge(SmcbCard card, String challenge) {
+  private SignedJWT signChallenge(String challenge) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
     try {
       var claims = new JWTClaimsSet.Builder().claim("njwt", challenge).build();
 
-      var cert = card.authRsaCertificate();
+      var cert = rsaSignatureService.authCertificate();
 
       var header =
           // FUTURE: use ECC with the "alg" BS256R1 instead
@@ -336,10 +335,10 @@ public class AuthorizationService {
 
       var jwt = new SignedJWT(header, claims);
 
-      var signer = signerForCard(card);
+      var signer = signerForCard();
       jwt.sign(signer);
 
-      debugLogSignedChallenge(card.handle(), challenge, jwt);
+      debugLogSignedChallenge(challenge, jwt);
 
       return jwt;
     } catch (JOSEException | ParseException | CertificateEncodingException e) {
@@ -347,30 +346,30 @@ public class AuthorizationService {
     }
   }
 
-  private void debugLogSignedChallenge(String cardHandle, String challenge, SignedJWT jwt)
-      throws ParseException {
+  private void debugLogSignedChallenge(String challenge, SignedJWT jwt) throws ParseException {
     if (!log.isDebugEnabled()) {
       return;
     }
 
+    var principal = rsaSignatureService.authCertificate().getSubjectX500Principal().getName();
     var header = jwt.getHeader().toString();
     var payload = JSONObjectUtils.toJSONString(jwt.getJWTClaimsSet().toJSONObject());
     log.atDebug()
-        .addKeyValue("card_handle", cardHandle)
+        .addKeyValue("principal", principal)
         .addKeyValue("challenge", challenge)
         .addKeyValue("header", header)
         .addKeyValue("payload", payload)
         .addKeyValue("jwt", jwt.serialize())
         .log(
-            "signed challenge\ncard_handle: {}\nchallenge: {}\nheader\n===\n{}\n===\npayload\n===\n{}\n===\njwt\n===\n{}\n===\n",
-            cardHandle,
+            "signed challenge\nprincipal: {}\nchallenge: {}\nheader\n===\n{}\n===\npayload\n===\n{}\n===\njwt\n===\n{}\n===\n",
+            principal,
             challenge,
             header,
             payload,
             jwt.serialize());
   }
 
-  private SignedJWT attestClient(SmcbCard card, String nonce) {
+  private SignedJWT attestClient(String nonce) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_Aktensystem_ePAfueralle/gemSpec_Aktensystem_ePAfueralle_V1.2.0/#A_25444-01
 
     var iat = Instant.now();
@@ -385,7 +384,7 @@ public class AuthorizationService {
             .claim("nonce", nonce)
             .build();
 
-    var cert = card.authRsaCertificate();
+    var cert = rsaSignatureService.authCertificate();
 
     //    if (!(cert.getPublicKey() instanceof ECPublicKey ecPublicKey)) {
     //      throw new AuthorizationException(
@@ -413,7 +412,7 @@ public class AuthorizationService {
 
       var jwt = new SignedJWT(header, claims);
 
-      var signer = signerForCard(card);
+      var signer = signerForCard();
 
       jwt.sign(signer);
       return jwt;
@@ -422,11 +421,11 @@ public class AuthorizationService {
     }
   }
 
-  private JWSSigner signerForCard(SmcbCard card) {
+  private JWSSigner signerForCard() {
     return new SmcBSigner(
         (h, c) -> {
           if (JWSAlgorithm.PS256.equals(h.getAlgorithm())) {
-            return rsaSignatureService.authSign(card, c);
+            return rsaSignatureService.authSign(c);
           }
 
           // TODO implement ECC
@@ -437,7 +436,7 @@ public class AuthorizationService {
           }
 
           throw new UnsupportedOperationException(
-              "unsupperted algorithm %s for signing with SMC-B".formatted(h.getAlgorithm()));
+              "unsupported algorithm %s for signing with SMC-B".formatted(h.getAlgorithm()));
         });
   }
 

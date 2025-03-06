@@ -1,8 +1,10 @@
 package com.oviva.telematik.vau.epa4all.client.authz;
 
-import com.oviva.epa.client.model.SmcbCard;
+import java.security.cert.X509Certificate;
 
 public interface RsaSignatureService {
 
-  byte[] authSign(SmcbCard card, byte[] bytesToSign);
+  X509Certificate authCertificate();
+
+  byte[] authSign(byte[] bytesToSign);
 }

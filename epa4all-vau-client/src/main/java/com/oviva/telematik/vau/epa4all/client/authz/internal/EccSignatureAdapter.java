@@ -2,19 +2,24 @@ package com.oviva.telematik.vau.epa4all.client.authz.internal;
 
 import com.oviva.epa.client.KonnektorService;
 import com.oviva.epa.client.model.SmcbCard;
-import com.oviva.telematik.vau.epa4all.client.authz.RsaSignatureService;
+import java.security.cert.X509Certificate;
 
-// TODO
-public class EccSignatureAdapter implements RsaSignatureService {
+// TODO: unused at the moment
+public class EccSignatureAdapter {
 
   private final KonnektorService konnektorService;
+  private final SmcbCard card;
 
-  public EccSignatureAdapter(KonnektorService konnektorService) {
+  public EccSignatureAdapter(KonnektorService konnektorService, SmcbCard card) {
     this.konnektorService = konnektorService;
+    this.card = card;
   }
 
-  @Override
-  public byte[] authSign(SmcbCard card, byte[] bytesToSign) {
+  public X509Certificate authCertificate() {
+    return card.authEccCertificate();
+  }
+
+  public byte[] authSign(byte[] bytesToSign) {
     return konnektorService.authSignEcdsa(card.handle(), bytesToSign);
   }
 }
