@@ -123,7 +123,7 @@ class EndToEndTest {
 
     // ----
     // 3. authenticate the client-side of the VAU tunnel
-    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(card, endpoint, insurantId));
+    assertDoesNotThrow(() -> authorizationService.authorizeVauWithSmcB(endpoint, insurantId));
 
     // => tunnel is now authorized, let the fun begin
 

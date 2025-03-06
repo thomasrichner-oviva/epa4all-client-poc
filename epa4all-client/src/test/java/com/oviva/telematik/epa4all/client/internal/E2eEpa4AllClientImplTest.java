@@ -16,14 +16,16 @@ class E2eEpa4AllClientImplTest {
     try (var cf =
         Epa4AllClientFactory.newFactory(
             TestKonnektors.riseKonnektor_RU(),
-            new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT))) {
+            new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT),
+            false)) {
 
+      // Oviva RISE FdV
       final var insurantId = "X110661675";
 
       var client = cf.newClient();
 
       var document = ExportFixture.buildFhirDocument(client.authorInstitution(), insurantId);
-      client.writeDocument(insurantId, document);
+      assertDoesNotThrow(() -> client.writeDocument(insurantId, document));
     }
   }
 }

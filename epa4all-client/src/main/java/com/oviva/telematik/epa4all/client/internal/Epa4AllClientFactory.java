@@ -50,7 +50,7 @@ public class Epa4AllClientFactory implements AutoCloseable {
   }
 
   public static Epa4AllClientFactory newFactory(
-      KonnektorService konnektorService, InetSocketAddress konnektorProxyAddress) {
+      KonnektorService konnektorService, InetSocketAddress konnektorProxyAddress, boolean isPu) {
 
     var outerHttpClient = buildOuterHttpClient(konnektorProxyAddress);
 
@@ -60,7 +60,7 @@ public class Epa4AllClientFactory implements AutoCloseable {
     var informationService =
         new InformationService(outerHttpClient, InformationService.Environment.DEV, providers);
 
-    var proxyServer = new Main(new Main.Configuration(konnektorProxyAddress, 0, false /* TODO */));
+    var proxyServer = new Main(new Main.Configuration(konnektorProxyAddress, 0, isPu /* TODO */));
     var serverInfo = proxyServer.start();
     var vauProxyServerListener = serverInfo.listenAddress();
     var vauProxyServerAddr = new InetSocketAddress(LOCALHOST, vauProxyServerListener.getPort());

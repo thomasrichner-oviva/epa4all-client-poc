@@ -2,33 +2,15 @@ package com.oviva.telematik.vau.epa4all.client.authz;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.nimbusds.jose.*;
-import com.nimbusds.jose.proc.BadJOSEException;
-import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
-import com.nimbusds.jose.proc.SecurityContext;
-import com.nimbusds.jose.util.Base64;
-import com.nimbusds.jose.util.JSONObjectUtils;
-import com.nimbusds.jwt.JWTClaimNames;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
-import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
-import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
-import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import com.oviva.telematik.vau.epa4all.client.authz.internal.*;
 import com.oviva.telematik.vau.httpclient.HttpClient;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.security.Security;
-import java.security.cert.CertificateEncodingException;
-import java.text.ParseException;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.*;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +40,8 @@ public class AuthorizationService {
 
   private final HttpClient innerHttpClient;
   private final java.net.http.HttpClient outerHttpClient;
-  private final RsaSignatureService rsaSignatureService;
+  private final AuthnChallengeResponder authnChallengeResponder;
+  private final AuthnClientAttester authnClientAttester;
 
   public AuthorizationService(
       HttpClient innerHttpClient,
@@ -66,7 +49,8 @@ public class AuthorizationService {
       RsaSignatureService rsaSignatureService) {
     this.innerHttpClient = innerHttpClient;
     this.outerHttpClient = outerHttpClient;
-    this.rsaSignatureService = rsaSignatureService;
+    this.authnChallengeResponder = new AuthnChallengeResponder(rsaSignatureService);
+    this.authnClientAttester = new AuthnClientAttester(rsaSignatureService);
   }
 
   public void authorizeVauWithSmcB(URI vauEndpoint, String insurantId) {
@@ -76,30 +60,24 @@ public class AuthorizationService {
 
     var authRes = sendAuthorizationRequestSmcB(vauEndpoint, insurantId);
 
-    // A_20663-01
-    var parsedChallenge = parseAndValidateChallenge(authRes.challenge());
+    // A_20663-01 & A_20665-01
+    var challengeResponse = authnChallengeResponder.challengeResponse(authRes.challenge());
 
-    // A_20665-01
-    var encryptedSignedChallenge = encryptAndSignChallenge(parsedChallenge);
+    var idpBaseUri = challengeResponse.issuer();
+    var authorizationCode =
+        exchangeEncryptedSignedChallenge(idpBaseUri, challengeResponse.response());
 
-    URI idpBaseUri = null;
-    try {
-      idpBaseUri = URI.create(parsedChallenge.getJWTClaimsSet().getIssuer());
-    } catch (ParseException e) {
-      throw new AuthorizationException("failed to read iss claim from challenge_token", e);
-    }
-    var authorizationCode = exchangeEncryptedSignedChallenge(idpBaseUri, encryptedSignedChallenge);
-
-    var signedClientAttest = attestClient(nonce).serialize();
+    var signedClientAttest = authnClientAttester.attestClient(nonce);
+    var signedClientAttestB64 = signedClientAttest.serialize();
 
     if (log.isDebugEnabled()) {
       log.atDebug().log(
           "signed nonce\nauthorizationCode\n===\n{}\n===\n\nclientAttest\n===\n{}\n===\n",
           authorizationCode,
-          signedClientAttest);
+          signedClientAttestB64);
     }
 
-    sendAuthorizationCodeSmbC(vauEndpoint, authorizationCode, signedClientAttest, insurantId);
+    sendAuthorizationCodeSmbC(vauEndpoint, authorizationCode, signedClientAttestB64, insurantId);
   }
 
   private AuthorizationRequestResponse sendAuthorizationRequestSmcB(
@@ -133,8 +111,7 @@ public class AuthorizationService {
         .orElseThrow(() -> new AuthorizationException("missing 'Location' header"));
   }
 
-  private String exchangeEncryptedSignedChallenge(
-      URI idpBaseUri, JWEObject encryptedSignedChallenge) {
+  private String exchangeEncryptedSignedChallenge(URI idpBaseUri, String encryptedSignedChallenge) {
 
     // TODO: dynamic config, though as is it is a JWT signed with `alg=BP256R1` which is
     // non-standard (╯°□°)╯︵ ┻━┻
@@ -144,8 +121,7 @@ public class AuthorizationService {
 
     var body =
         "signed_challenge=%s"
-            .formatted(
-                URLEncoder.encode(encryptedSignedChallenge.serialize(), StandardCharsets.UTF_8));
+            .formatted(URLEncoder.encode(encryptedSignedChallenge, StandardCharsets.UTF_8));
 
     var req =
         HttpRequest.newBuilder(uri)
@@ -223,296 +199,6 @@ public class AuthorizationService {
 
     return JsonCodec.readBytes(res.body(), NonceResponse.class);
   }
-
-  private JWEObject encryptAndSignChallenge(@NonNull SignedJWT challenge) {
-    // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
-
-    var expiry = expiryFromChallengeBody(challenge);
-    var payload = signChallenge(challenge.serialize());
-
-    try {
-
-      // TODO: fetch from discovery
-      // RU: https://idp-ref.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
-      // PU: https://idp.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
-
-      // https://gemspec.gematik.de/docs/gemILF/gemILF_PS_ePA/gemILF_PS_ePA_V3.2.3/#A_20667-02
-      // WTF? Brainpool curves?
-      var idpEncKey =
-          BP256ECKey.parse(
-              """
-            {
-              "kid": "puk_idp_enc",
-              "use": "enc",
-              "kty": "EC",
-              "crv": "BP-256",
-              "x": "pkU8LlTZsoGTloO7yjIkV626aGtwpelJ2Wrx7fZtOTo",
-              "y": "VliGWQLNtyGuQFs9nXbWdE9O9PFtxb42miy4yaCkCi8"
-            }
-        """);
-
-      // ePA deployment:
-      // curl https://idp-ref.app.ti-dienste.de/.well-known/openid-configuration
-      // curl https://idp-ref.app.ti-dienste.de/certs
-
-      var pub = idpEncKey.toECPublicKey(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME));
-
-      // extra hoops for BP256 signing
-      var encrypter = new BP256ECDHEncrypter(pub);
-      encrypter
-          .getJCAContext()
-          .setProvider(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME));
-
-      // https://datatracker.ietf.org/doc/html/draft-yusef-oauth-nested-jwt-03
-      var jwe = nestAsJwe(payload, expiry);
-      jwe.encrypt(encrypter);
-
-      debugLogChallengeJwe(jwe);
-
-      return jwe;
-    } catch (JOSEException | ParseException e) {
-      throw new AuthorizationException("TODO", e);
-    }
-  }
-
-  private void debugLogChallengeJwe(JWEObject jwe) {
-    if (!log.isDebugEnabled()) {
-      return;
-    }
-    log.atDebug()
-        // header was updated with ephemeral key
-        .addKeyValue("header", jwe.getHeader().toString())
-        .addKeyValue("payload", jwe.getPayload().toString())
-        .log("encrypting nested challenge");
-  }
-
-  private Instant expiryFromChallengeBody(SignedJWT challenge) {
-
-    // get exp from challenge
-    try {
-      var challengeClaims = challenge.getJWTClaimsSet();
-      if (challengeClaims == null) {
-        throw new AuthorizationException("empty challenge claims");
-      }
-      var challengeExp = challengeClaims.getExpirationTime();
-      if (challengeExp == null) {
-        throw new AuthorizationException("challenge without expiry");
-      }
-      return challengeExp.toInstant();
-    } catch (ParseException e) {
-      throw new AuthorizationException("failed to parse challenge expiry claim", e);
-    }
-  }
-
-  private JWEObject nestAsJwe(@NonNull JOSEObject nested, @NonNull Instant exp) {
-
-    var alg = JWEAlgorithm.ECDH_ES;
-    var enc = EncryptionMethod.A256GCM;
-    // https://datatracker.ietf.org/doc/html/draft-yusef-oauth-nested-jwt-03
-    var jweHeader =
-        new JWEHeader.Builder(alg, enc)
-            .contentType("NJWT")
-            .customParam("exp", exp.getEpochSecond())
-            .build();
-    var jweBody = new Payload(Map.of("njwt", nested.serialize()));
-    return new JWEObject(jweHeader, jweBody);
-  }
-
-  private SignedJWT signChallenge(String challenge) {
-    // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
-    try {
-      var claims = new JWTClaimsSet.Builder().claim("njwt", challenge).build();
-
-      var cert = rsaSignatureService.authCertificate();
-
-      var header =
-          // FUTURE: use ECC with the "alg" BS256R1 instead
-          new JWSHeader.Builder(JWSAlgorithm.PS256)
-              .type(JOSEObjectType.JWT)
-              .x509CertChain(List.of(Base64.encode(cert.getEncoded())))
-              .contentType("NJWT")
-              .build();
-
-      var jwt = new SignedJWT(header, claims);
-
-      var signer = signerForCard();
-      jwt.sign(signer);
-
-      debugLogSignedChallenge(challenge, jwt);
-
-      return jwt;
-    } catch (JOSEException | ParseException | CertificateEncodingException e) {
-      throw new AuthorizationException("failed to sign challenge", e);
-    }
-  }
-
-  private void debugLogSignedChallenge(String challenge, SignedJWT jwt) throws ParseException {
-    if (!log.isDebugEnabled()) {
-      return;
-    }
-
-    var principal = rsaSignatureService.authCertificate().getSubjectX500Principal().getName();
-    var header = jwt.getHeader().toString();
-    var payload = JSONObjectUtils.toJSONString(jwt.getJWTClaimsSet().toJSONObject());
-    log.atDebug()
-        .addKeyValue("principal", principal)
-        .addKeyValue("challenge", challenge)
-        .addKeyValue("header", header)
-        .addKeyValue("payload", payload)
-        .addKeyValue("jwt", jwt.serialize())
-        .log(
-            "signed challenge\nprincipal: {}\nchallenge: {}\nheader\n===\n{}\n===\npayload\n===\n{}\n===\njwt\n===\n{}\n===\n",
-            principal,
-            challenge,
-            header,
-            payload,
-            jwt.serialize());
-  }
-
-  private SignedJWT attestClient(String nonce) {
-    // https://gemspec.gematik.de/docs/gemSpec/gemSpec_Aktensystem_ePAfueralle/gemSpec_Aktensystem_ePAfueralle_V1.2.0/#A_25444-01
-
-    var iat = Instant.now();
-
-    // A_25444-01
-    var exp = iat.plus(Duration.ofMinutes(20));
-
-    var claims =
-        new JWTClaimsSet.Builder()
-            .issueTime(Date.from(iat))
-            .expirationTime(Date.from(exp))
-            .claim("nonce", nonce)
-            .build();
-
-    var cert = rsaSignatureService.authCertificate();
-
-    //    if (!(cert.getPublicKey() instanceof ECPublicKey ecPublicKey)) {
-    //      throw new AuthorizationException(
-    //          "unexpected certificate type, expected ECPublicKey but got %s"
-    //              .formatted(cert.getPublicKey()));
-    //    }
-    //
-    //    // check curve
-    //    if (!BrainpoolCurve.isBP256(ecPublicKey.getParams())) {
-    //      throw new AuthorizationException("SMB-C has unexpected curve, expected BP-256");
-    //    }
-
-    try {
-      var x5c = Base64.encode(cert.getEncoded());
-
-      // TODO: use ES256 but with the brainpoolP256r curve
-      // this is not according to the official RFC, this is the intended way for this use-case
-      // though ¯\_(ツ)_/¯
-
-      var header =
-          new JWSHeader.Builder(JWSAlgorithm.PS256)
-              .type(JOSEObjectType.JWT)
-              .x509CertChain(List.of(x5c))
-              .build();
-
-      var jwt = new SignedJWT(header, claims);
-
-      var signer = signerForCard();
-
-      jwt.sign(signer);
-      return jwt;
-    } catch (JOSEException | CertificateEncodingException e) {
-      throw new AuthorizationException("failed client attestation - signing nonce", e);
-    }
-  }
-
-  private JWSSigner signerForCard() {
-    return new SmcBSigner(
-        (h, c) -> {
-          if (JWSAlgorithm.PS256.equals(h.getAlgorithm())) {
-            return rsaSignatureService.authSign(c);
-          }
-
-          // TODO implement ECC
-          var eccAlgs = Set.of(JWSAlgorithm.ES256, JWS_ALG_BS256R1);
-          if (eccAlgs.contains(h.getAlgorithm())) {
-            throw new UnsupportedOperationException("ecc alg not properly supported yet");
-            //        return konnektorService.authSignEcdsa(cardHandle, c);
-          }
-
-          throw new UnsupportedOperationException(
-              "unsupported algorithm %s for signing with SMC-B".formatted(h.getAlgorithm()));
-        });
-  }
-
-  private SignedJWT parseAndValidateChallenge(String challenge) {
-    // A_20663-01
-
-    var parsedChallenge = parseChallenge(challenge);
-
-    // TODO: validate signature of challenge A_20663-01
-    try {
-      var claims = parsedChallenge.getJWTClaimsSet();
-      var iss = claims.getIssuer();
-
-    } catch (ParseException e) {
-      throw new AuthorizationException("failed to verify challenge signature", e);
-    }
-
-    return parsedChallenge;
-  }
-
-  private SignedJWT parseChallenge(String challenge) {
-    try {
-      var parsedChallenge = SignedJWT.parse(challenge);
-      return validateChallengeTypeAndClaims(parsedChallenge);
-    } catch (BadJOSEException | ParseException e) {
-      throw new AuthorizationException("challenge is not a valid JWT", e);
-    }
-  }
-
-  private SignedJWT validateChallengeTypeAndClaims(SignedJWT challenge)
-      throws BadJOSEException, ParseException {
-
-    // TODO make signletons
-    var challengeTypeVerifier = new DefaultJOSEObjectTypeVerifier<>(JOSEObjectType.JWT);
-    var challengeClaimsVerifier =
-        new DefaultJWTClaimsVerifier<>(
-            new JWTClaimsSet.Builder().claim("response_type", "code").build(),
-            Set.of(JWTClaimNames.ISSUED_AT, JWTClaimNames.ISSUER, JWTClaimNames.EXPIRATION_TIME));
-
-    challengeTypeVerifier.verify(challenge.getHeader().getType(), null);
-    challengeClaimsVerifier.verify(challenge.getJWTClaimsSet(), null);
-    return challenge;
-  }
-
-  private DiscoveryDocument loadDiscoveryDocument(String challenge) {
-
-    try {
-      var parsedChallenge = JWSObject.parse(challenge);
-
-      ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
-      jwtProcessor.setJWSTypeVerifier(new DefaultJOSEObjectTypeVerifier<>(JOSEObjectType.JWT));
-      //        jwtProcessor.process(parsedChallenge, null)
-      //          parsedChallenge
-      //                  .getPayload()
-      //                  .
-    } catch (ParseException e) {
-      throw new AuthorizationException("challenge is not a valid JWT", e);
-    }
-
-    return null;
-  }
-
-  private DiscoveryDocument parseAndValidateDiscoveryDocument(URI discoveryDocumentUri) {
-
-    return null;
-    //    try {
-    //      var parsedDiscoveryDocument = JWSObject.parse(authRes.challenge());
-    //      var jsonPayload = parsedDiscoveryDocument.getPayload().toJSONObject();
-    //      var pukIdpSig = jsonPayload.get("uri_puk_idp_sig");
-    //      var pukIdpEnc = jsonPayload.get("uri_puk_idp_sig");
-    //    } catch (ParseException e) {
-    //      throw new RuntimeException(e);
-    //    }
-  }
-
-  private record DiscoveryDocument(URI issuer, String jwks_uri, long iat, long exp) {}
 
   private AuthorizationRequestResponse followRedirect(URI idpAuthEndpoint) {
     try {
