@@ -1,6 +1,7 @@
 package com.oviva.telematik.vau.epa4all.client.authz.internal;
 
 import com.nimbusds.jose.*;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.proc.BadJOSEException;
 import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
 import com.nimbusds.jose.util.Base64;
@@ -12,7 +13,11 @@ import com.nimbusds.jwt.proc.DefaultJWTClaimsVerifier;
 import com.oviva.telematik.vau.epa4all.client.authz.AuthorizationException;
 import com.oviva.telematik.vau.epa4all.client.authz.RsaSignatureService;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URL;
 import java.security.Security;
 import java.security.cert.CertificateEncodingException;
 import java.text.ParseException;
@@ -27,10 +32,12 @@ import org.slf4j.LoggerFactory;
 public class AuthnChallengeResponder {
 
   private final RsaSignatureService rsaSignatureService;
+  private final OidcClient oidcClient;
   private final Logger log = LoggerFactory.getLogger(AuthnChallengeResponder.class);
 
-  public AuthnChallengeResponder(RsaSignatureService rsaSignatureService) {
+  public AuthnChallengeResponder(RsaSignatureService rsaSignatureService, OidcClient oidcClient) {
     this.rsaSignatureService = rsaSignatureService;
+    this.oidcClient = oidcClient;
   }
 
   public record Response(URI issuer, String response) {}
@@ -39,11 +46,11 @@ public class AuthnChallengeResponder {
 
     // A_20663-01
     var parsedChallenge = parseAndValidateChallenge(challenge);
+    var iss = issuerUriFromChallenge(parsedChallenge);
 
     // A_20665-01
-    var jweResponse = encryptAndSignChallenge(parsedChallenge);
+    var jweResponse = encryptAndSignChallenge(iss, parsedChallenge);
 
-    var iss = issuerUriFromChallenge(parsedChallenge);
     return new Response(iss, jweResponse.serialize());
   }
 
@@ -96,7 +103,7 @@ public class AuthnChallengeResponder {
     return challenge;
   }
 
-  public JWEObject encryptAndSignChallenge(@NonNull SignedJWT challenge) {
+  public JWEObject encryptAndSignChallenge(URI iss, @NonNull SignedJWT challenge) {
     // https://gemspec.gematik.de/docs/gemSpec/gemSpec_IDP_Dienst/gemSpec_IDP_Dienst_V1.7.0/#7.3
 
     var expiry = expiryFromChallengeBody(challenge);
@@ -107,27 +114,32 @@ public class AuthnChallengeResponder {
       // TODO: fetch from discovery
       // RU: https://idp-ref.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
       // PU: https://idp.zentral.idp.splitdns.ti-dienste.de/.well-known/openid-configuration
-
-      // https://gemspec.gematik.de/docs/gemILF/gemILF_PS_ePA/gemILF_PS_ePA_V3.2.3/#A_20667-02
-      // WTF? Brainpool curves?
-      var idpEncKey =
-          BP256ECKey.parse(
-              """
-                          {
-                            "kid": "puk_idp_enc",
-                            "use": "enc",
-                            "kty": "EC",
-                            "crv": "BP-256",
-                            "x": "pkU8LlTZsoGTloO7yjIkV626aGtwpelJ2Wrx7fZtOTo",
-                            "y": "VliGWQLNtyGuQFs9nXbWdE9O9PFtxb42miy4yaCkCi8"
-                          }
-                      """);
-
-      // ePA deployment:
       // curl https://idp-ref.app.ti-dienste.de/.well-known/openid-configuration
       // curl https://idp-ref.app.ti-dienste.de/certs
 
-      var pub = idpEncKey.toECPublicKey(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME));
+      // https://gemspec.gematik.de/docs/gemILF/gemILF_PS_ePA/gemILF_PS_ePA_V3.2.3/#A_20667-02
+      var idpEncKey = fetchIdpEncKey(iss);
+
+      // WTF? Brainpool curves?
+      //      var idpEncKey =
+      //          BP256ECKey.parse(
+      //              """
+      //                          {
+      //                            "kid": "puk_idp_enc",
+      //                            "use": "enc",
+      //                            "kty": "EC",
+      //                            "crv": "BP-256",
+      //                            "x": "pkU8LlTZsoGTloO7yjIkV626aGtwpelJ2Wrx7fZtOTo",
+      //                            "y": "VliGWQLNtyGuQFs9nXbWdE9O9PFtxb42miy4yaCkCi8"
+      //                          }
+      //                      """);
+
+      if (!(idpEncKey instanceof BP256ECKey bp256ECKey)) {
+        throw new AuthorizationException(
+            "unexpected idp enc key type: %s".formatted(idpEncKey.getKeyType().getValue()));
+      }
+
+      var pub = bp256ECKey.toECPublicKey(Security.getProvider(BouncyCastleProvider.PROVIDER_NAME));
 
       // extra hoops for BP256 signing
       var encrypter = new BP256ECDHEncrypter(pub);
@@ -142,9 +154,23 @@ public class AuthnChallengeResponder {
       debugLogChallengeJwe(jwe);
 
       return jwe;
-    } catch (JOSEException | ParseException e) {
-      throw new AuthorizationException("TODO", e);
+    } catch (JOSEException e) {
+      throw new AuthorizationException("Failed to encrypt and sign challenge", e);
     }
+  }
+
+  private JWK fetchIdpEncKey(URI issuer) {
+
+    // we do not verify the document much here, we just want the links
+    var discoveryDocument = oidcClient.fetchOidcDiscoveryDocument(issuer);
+
+    var encKeyUri = discoveryDocument.uriPukIdpEnc();
+    if (encKeyUri == null) {
+      throw new AuthorizationException("no uri_puk_idp_enc found in discovery document");
+    }
+
+    // https://gemspec.gematik.de/docs/gemILF/gemILF_PS_ePA/gemILF_PS_ePA_V3.2.3/#A_20667-02
+    return oidcClient.fetchJwk(encKeyUri);
   }
 
   private JWEObject nestAsJwe(@NonNull JOSEObject nested, @NonNull Instant exp) {
@@ -238,5 +264,63 @@ public class AuthnChallengeResponder {
             header,
             payload,
             jwt.serialize());
+  }
+
+  private BP256ECKey fetchEncryptionKeyFromOidcConfig(URI issuer) {
+    try {
+      // Base URI for OIDC configuration
+      String oidcConfigUrl = issuer.toString();
+      if (!oidcConfigUrl.endsWith("/")) {
+        oidcConfigUrl += "/";
+      }
+      oidcConfigUrl += ".well-known/openid-configuration";
+
+      log.debug("Fetching OIDC configuration from: {}", oidcConfigUrl);
+
+      // Fetch the OIDC configuration
+      URL url = new URL(oidcConfigUrl);
+      Map<String, Object> oidcConfig = JSONObjectUtils.parse(readUrlContent(url));
+
+      // Get the JWKS URI from the configuration
+      String jwksUri = (String) oidcConfig.get("jwks_uri");
+      if (jwksUri == null) {
+        throw new AuthorizationException("JWKS URI not found in OIDC configuration");
+      }
+
+      log.debug("Fetching JWKS from: {}", jwksUri);
+
+      // Fetch the JWKS
+      URL jwksUrl = new URL(jwksUri);
+      Map<String, Object> jwks = JSONObjectUtils.parse(readUrlContent(jwksUrl));
+
+      // Find the encryption key with kid "puk_idp_enc" and use "enc"
+      List<Map<String, Object>> keys = (List<Map<String, Object>>) jwks.get("keys");
+      for (Map<String, Object> key : keys) {
+        String kid = (String) key.get("kid");
+        String use = (String) key.get("use");
+        String kty = (String) key.get("kty");
+
+        if ("puk_idp_enc".equals(kid) && "enc".equals(use) && "EC".equals(kty)) {
+          // Parse the key
+          return BP256ECKey.parse(JSONObjectUtils.toJSONString(key));
+        }
+      }
+
+      throw new AuthorizationException("Encryption key not found in JWKS");
+    } catch (Exception e) {
+      log.error("Failed to fetch encryption key from OIDC configuration", e);
+      throw new AuthorizationException("Failed to fetch encryption key from OIDC configuration", e);
+    }
+  }
+
+  private String readUrlContent(URL url) throws IOException {
+    try (var reader = new BufferedReader(new InputStreamReader(url.openStream()))) {
+      StringBuilder content = new StringBuilder();
+      String line;
+      while ((line = reader.readLine()) != null) {
+        content.append(line);
+      }
+      return content.toString();
+    }
   }
 }

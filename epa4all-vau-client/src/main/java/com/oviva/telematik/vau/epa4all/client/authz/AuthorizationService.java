@@ -49,7 +49,8 @@ public class AuthorizationService {
       RsaSignatureService rsaSignatureService) {
     this.innerHttpClient = innerHttpClient;
     this.outerHttpClient = outerHttpClient;
-    this.authnChallengeResponder = new AuthnChallengeResponder(rsaSignatureService);
+    this.authnChallengeResponder =
+        new AuthnChallengeResponder(rsaSignatureService, new OidcClient(outerHttpClient));
     this.authnClientAttester = new AuthnClientAttester(rsaSignatureService);
   }
 
