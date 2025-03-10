@@ -12,12 +12,14 @@ import java.util.regex.Pattern;
 
 public class HttpCodec {
 
+  private HttpCodec() {}
+
   private static final String HTTP_VERSION = "HTTP/1.1";
   private static final byte[] CRLF = "\r\n".getBytes(StandardCharsets.UTF_8);
 
-  private static final Set<String> unsupportedHeaders = Set.of("transfer-coding", "TE");
-  private static final Set<String> skipHeaders = Set.of("content-length");
-  private static final Set<String> supportedMethods = Set.of("GET", "POST", "PUT", "DELETE");
+  private static final Set<String> UNSUPPORTED_HEADERS = Set.of("transfer-coding", "TE");
+  private static final Set<String> SKIP_HEADERS = Set.of("content-length");
+  private static final Set<String> SUPPORTED_METHODS = Set.of("GET", "POST", "PUT", "DELETE");
   private static final Pattern HEADER_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9-_]+");
 
   public static HttpClient.Response decode(byte[] bytes) {
@@ -196,7 +198,7 @@ public class HttpCodec {
 
     for (HttpClient.Header h : headers) {
       var name = canonicalizeHeaderName(h.name());
-      if (skipHeaders.contains(name)) {
+      if (SKIP_HEADERS.contains(name)) {
         continue;
       }
       buf.writeBytes(asUtf8(name));
@@ -224,14 +226,14 @@ public class HttpCodec {
   }
 
   private static void validateMethod(String method) {
-    if (method == null || (!supportedMethods.contains(method))) {
+    if (method == null || (!SUPPORTED_METHODS.contains(method))) {
       throw new HttpClient.HttpException("unsupported method: '%s'".formatted(method));
     }
   }
 
   private static void validateHeader(String name, String value) {
     name = canonicalizeHeaderName(name);
-    if (unsupportedHeaders.contains(name)) {
+    if (UNSUPPORTED_HEADERS.contains(name)) {
       throw new HttpClient.HttpException("unsupported header: '%s'".formatted(name));
     }
     if (!HEADER_NAME_PATTERN.matcher(name).matches()) {

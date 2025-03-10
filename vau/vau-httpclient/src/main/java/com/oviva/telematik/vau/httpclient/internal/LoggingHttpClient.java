@@ -45,7 +45,9 @@ public class LoggingHttpClient implements HttpClient {
         .forEach(sb::append);
     sb.append('\n');
 
-    sb.append(new String(response.body(), StandardCharsets.UTF_8));
+    if (response.body() != null) {
+      sb.append(new String(response.body(), StandardCharsets.UTF_8));
+    }
     return sb.toString();
   }
 }

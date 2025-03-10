@@ -29,7 +29,6 @@ public class JavaHttpClient implements HttpClient {
 
     Stream.ofNullable(req.headers())
         .flatMap(List::stream)
-        .distinct()
         .forEach(h -> builder.header(h.name(), h.value()));
 
     if (req.body() == null || req.body().length == 0) {
