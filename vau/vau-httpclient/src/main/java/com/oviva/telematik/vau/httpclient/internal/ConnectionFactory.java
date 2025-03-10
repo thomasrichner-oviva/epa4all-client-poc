@@ -29,7 +29,6 @@ public class ConnectionFactory implements VauClientFactory {
   private final boolean isPu;
 
   private final TrustValidator trustValidator;
-  private final String xUserAgent;
   private final List<HttpClient.Header> userAgentHeaders;
 
   /**
@@ -39,7 +38,6 @@ public class ConnectionFactory implements VauClientFactory {
       HttpClient outerClient, boolean isPu, String xUserAgent, TrustValidator trustValidator) {
     this.isPu = isPu;
     this.trustValidator = trustValidator;
-    this.xUserAgent = xUserAgent;
     this.userAgentHeaders =
         List.of(
             new HttpClient.Header("x-useragent", xUserAgent),

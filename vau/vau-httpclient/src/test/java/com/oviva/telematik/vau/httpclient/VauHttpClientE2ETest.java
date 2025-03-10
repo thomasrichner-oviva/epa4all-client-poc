@@ -4,16 +4,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
-import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.security.Security;
 import java.time.Duration;
 import java.util.List;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
-class VauHttpClientBuilderTest {
+@Disabled("e2e")
+class VauHttpClientE2ETest {
 
   static {
     Security.addProvider(new BouncyCastlePQCProvider());
@@ -23,9 +26,7 @@ class VauHttpClientBuilderTest {
   @Test
   void testStatus() {
 
-    //    var vauUri = URI.create("http://localhost:8081/VAU");
-    var vauUri = URI.create("https://e4a-rt.deine-epa.de/VAU");
-    //    var vauUri = URI.create("https://epa-as-2.dev.epa4all.de/VAU"); // Bitmarck RU
+    var vauUri = URI.create("https://epa-as-2.dev.epa4all.de/VAU"); // Bitmarck RU
 
     // connect VAU tunnel (unauthenticated)
     var client =
@@ -34,12 +35,12 @@ class VauHttpClientBuilderTest {
             .outerClient(
                 JavaHttpClient.from(
                     java.net.http.HttpClient.newBuilder()
+                        .proxy(ProxySelector.of(new InetSocketAddress("localhost", 3128)))
+                        // TODO add SSL .sslContext(...)
                         .connectTimeout(Duration.ofSeconds(5))
                         .build()))
-            .trustValidator(
-                (certificate, issuerCa, certificateChain, ocspResponseDer) ->
-                    new TrustValidator.ValidationResult(true, null, null))
             .isPu(false)
+            .withInsecureTrustValidator()
             .build();
 
     var conn = client.connect(vauUri);
@@ -61,7 +62,6 @@ class VauHttpClientBuilderTest {
                     //                    new HttpClient.Header("x-insurantid", "Z987654321"),
                     new HttpClient.Header("accept", "application/json")),
                 null));
-    System.out.println(nonceRes);
 
     assertEquals(200, nonceRes.status());
     assertNotNull(nonceRes.body());
