@@ -112,7 +112,7 @@ public abstract class AbstractVauStateMachine {
    */
   public byte[] encryptVauMessage(byte[] cleartext) {
     byte versionByte = 2;
-    byte puByte = 0;
+    byte puByte = isPu ? (byte) 1 : (byte) 0;
     byte reqByte = getRequestByte();
     byte[] reqCtrBytes = ByteBuffer.allocate(8).putLong(getRequestCounter()).array();
     byte[] header = unionByteArrays(versionByte, puByte, reqByte, reqCtrBytes, getKeyId());

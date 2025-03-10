@@ -29,7 +29,8 @@ class VauHttpClientBuilderTest {
 
     // connect VAU tunnel (unauthenticated)
     var client =
-        VauClientFactoryBuilder.builder()
+        VauClientFactoryBuilder.newBuilder()
+            .xUserAgent("TEST/1.0.0-12")
             .outerClient(
                 JavaHttpClient.from(
                     java.net.http.HttpClient.newBuilder()

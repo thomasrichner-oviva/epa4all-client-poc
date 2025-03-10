@@ -3,8 +3,10 @@ package com.oviva.telematik.epa4all.client.internal;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.net.InetSocketAddress;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
+@Disabled("e2e")
 class E2eEpa4AllClientImplTest {
 
   private static final String KONNEKTOR_PROXY_HOST = "127.0.0.1";
@@ -12,6 +14,8 @@ class E2eEpa4AllClientImplTest {
 
   @Test
   void writeDocument() {
+
+    System.setProperty("jdk.httpclient.HttpClient.log", "errors,requests,headers");
 
     try (var cf =
         Epa4AllClientFactory.newFactory(

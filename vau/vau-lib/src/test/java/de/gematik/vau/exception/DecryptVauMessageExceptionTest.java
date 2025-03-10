@@ -63,7 +63,7 @@ class DecryptVauMessageExceptionTest {
             serverVauKeys);
 
     server = new VauServerStateMachine(signedPublicVauKeys, serverVauKeyPair);
-    client = new VauClientStateMachine(s -> true);
+    client = new VauClientStateMachine(false, s -> true);
     final byte[] message1Encoded = client.generateMessage1();
     final byte[] message2Encoded = server.receiveMessage(message1Encoded);
     final byte[] message3Encoded = client.receiveMessage2(message2Encoded);

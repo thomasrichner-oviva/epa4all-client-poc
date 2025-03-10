@@ -60,7 +60,9 @@ public class Epa4AllClientFactory implements AutoCloseable {
     var informationService =
         new InformationService(outerHttpClient, InformationService.Environment.DEV, providers);
 
-    var proxyServer = new Main(new Main.Configuration(konnektorProxyAddress, 0, isPu /* TODO */));
+    var xUserAgent = isPu ? "GEMOvivepa4fA734EBIP/0.1.0" : "GEMOvivepa4fA1d5W8sR/0.1.0";
+
+    var proxyServer = new Main(new Main.Configuration(konnektorProxyAddress, 0, isPu, xUserAgent));
     var serverInfo = proxyServer.start();
     var vauProxyServerListener = serverInfo.listenAddress();
     var vauProxyServerAddr = new InetSocketAddress(LOCALHOST, vauProxyServerListener.getPort());

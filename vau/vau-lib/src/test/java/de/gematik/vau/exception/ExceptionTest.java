@@ -169,7 +169,7 @@ class ExceptionTest {
             serverVauKeys);
 
     VauServerStateMachine server = new VauServerStateMachine(signedPublicVauKeys, serverVauKeyPair);
-    VauClientStateMachine client = new VauClientStateMachine(s -> true);
+    VauClientStateMachine client = new VauClientStateMachine(false, s -> true);
     final byte[] message1Encoded = client.generateMessage1();
     final byte[] message2Encoded = server.receiveMessage(message1Encoded);
     final byte[] message3Encoded = client.receiveMessage2(message2Encoded);
@@ -235,7 +235,7 @@ class ExceptionTest {
             serverVauKeys);
 
     VauServerStateMachine server = new VauServerStateMachine(signedPublicVauKeys, serverVauKeyPair);
-    VauClientStateMachine client = new VauClientStateMachine(s -> true);
+    VauClientStateMachine client = new VauClientStateMachine(false, s -> true);
     final byte[] message1Encoded = client.generateMessage1();
     final byte[] message2Encoded = server.receiveMessage(message1Encoded);
     final byte[] message3Encoded = client.receiveMessage2(message2Encoded);
@@ -357,7 +357,7 @@ class ExceptionTest {
   @Test
   void testReceiveMessage2CborExceptionMessage() {
     byte[] whatever = new byte[0];
-    VauClientStateMachine client = new VauClientStateMachine(s -> true);
+    VauClientStateMachine client = new VauClientStateMachine(false, s -> true);
     assertThatThrownBy(() -> client.receiveMessage2(whatever))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Could not CBOR decode Message 2 when receiving it at client. ");
@@ -366,7 +366,7 @@ class ExceptionTest {
   @Test
   void testReceiveMessage4CborExceptionMessage() {
     byte[] whatever = new byte[0];
-    VauClientStateMachine client = new VauClientStateMachine(s -> true);
+    VauClientStateMachine client = new VauClientStateMachine(false, s -> true);
     assertThatThrownBy(() -> client.receiveMessage4(whatever))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Could not CBOR decode Message 4 when receiving it at client. ");
@@ -393,7 +393,7 @@ class ExceptionTest {
             serverVauKeys);
 
     VauServerStateMachine server = new VauServerStateMachine(signedPublicVauKeys, serverVauKeyPair);
-    VauClientStateMachine client = new VauClientStateMachine(s -> true);
+    VauClientStateMachine client = new VauClientStateMachine(false, s -> true);
     final byte[] message1Encoded = client.generateMessage1();
 
     BigInteger illegalBigInteger = BigInteger.valueOf(1000);

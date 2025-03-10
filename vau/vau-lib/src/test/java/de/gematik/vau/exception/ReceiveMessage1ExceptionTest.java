@@ -64,7 +64,7 @@ class ReceiveMessage1ExceptionTest {
             serverVauKeys);
 
     server = new VauServerStateMachine(signedPublicVauKeys, serverVauKeyPair);
-    client = new VauClientStateMachine(s -> true);
+    client = new VauClientStateMachine(false, s -> true);
   }
 
   @Test

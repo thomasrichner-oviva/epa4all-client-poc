@@ -7,15 +7,15 @@ import java.time.Duration;
 
 public class VauClientFactoryBuilder {
 
-  private static final String X_USER_AGENT = "OvivaProxy/0.0.1";
-
-  public static VauClientFactoryBuilder builder() {
+  public static VauClientFactoryBuilder newBuilder() {
     return new VauClientFactoryBuilder();
   }
 
   private boolean isPu = true;
 
   private TrustValidator trustValidator = null;
+
+  private String xUserAgent;
 
   private HttpClient outerClient =
       JavaHttpClient.from(
@@ -35,6 +35,11 @@ public class VauClientFactoryBuilder {
 
   public VauClientFactoryBuilder trustValidator(TrustValidator trustValidator) {
     this.trustValidator = trustValidator;
+    return this;
+  }
+
+  public VauClientFactoryBuilder xUserAgent(String xUserAgent) {
+    this.xUserAgent = xUserAgent;
     return this;
   }
 
@@ -58,6 +63,10 @@ public class VauClientFactoryBuilder {
       throw new IllegalArgumentException("trust validator missing");
     }
 
-    return new ConnectionFactory(outerClient, isPu, X_USER_AGENT, trustValidator);
+    if (xUserAgent == null) {
+      xUserAgent = "TEST1234567890AB/2.1.12-45";
+    }
+
+    return new ConnectionFactory(outerClient, isPu, xUserAgent, trustValidator);
   }
 }

@@ -17,10 +17,21 @@ public class HeaderDecoratorHttpClient implements HttpClient {
   @Override
   public Response call(Request req) {
 
-    var headers = new ArrayList<>(req.headers());
-    headers.addAll(extraHeaders);
+    var decorated = new ArrayList<>(extraHeaders);
+    if (req.headers() != null) {
+      for (Header h : req.headers()) {
+        if (isExtraHeader(h)) {
+          continue;
+        }
+        decorated.add(h);
+      }
+    }
 
-    var newRequest = new Request(req.uri(), req.method(), headers, req.body());
+    var newRequest = new Request(req.uri(), req.method(), decorated, req.body());
     return delegate.call(newRequest);
+  }
+
+  private boolean isExtraHeader(Header h) {
+    return extraHeaders.stream().anyMatch(n -> n.name().equalsIgnoreCase(h.name()));
   }
 }

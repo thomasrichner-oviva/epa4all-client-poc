@@ -85,7 +85,7 @@ class VauHandshakeTest {
   void testHandshake_simple() throws Exception {
 
     var server = setupServer();
-    var client = new VauClientStateMachine(s -> true);
+    var client = new VauClientStateMachine(false, s -> true);
 
     // when: client -> server
     var message1Encoded = client.generateMessage1();
@@ -179,7 +179,7 @@ class VauHandshakeTest {
         .isEqualTo("KYBER768");
 
     VauServerStateMachine server = new VauServerStateMachine(signedPublicVauKeys, serverVauKeyPair);
-    VauClientStateMachine client = new VauClientStateMachine(s -> true);
+    VauClientStateMachine client = new VauClientStateMachine(false, s -> true);
 
     final byte[] message1Encoded = client.generateMessage1();
     final JsonNode message1Tree = new CBORMapper().readTree(message1Encoded);

@@ -6,13 +6,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 import com.oviva.telematik.vau.httpclient.HttpClient;
 import com.oviva.telematik.vau.httpclient.VauClientFactory;
-import com.oviva.telematik.vau.httpclient.internal.cert.TrustStoreValidator;
 import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import de.gematik.vau.lib.VauClientStateMachine;
 import de.gematik.vau.lib.exceptions.VauProtocolException;
 import java.io.IOException;
 import java.net.URI;
-import java.security.KeyStore;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
@@ -31,23 +29,22 @@ public class ConnectionFactory implements VauClientFactory {
   private final boolean isPu;
 
   private final TrustValidator trustValidator;
+  private final String xUserAgent;
+  private final List<HttpClient.Header> userAgentHeaders;
 
+  /**
+   * @param xUserAgent as registered with Gematik, CLIENTID1234567890AB/2.1.12-45
+   */
   public ConnectionFactory(
-      HttpClient outerClient, boolean isPu, String userAgent, KeyStore tiRootCertificates) {
-    this.isPu = isPu;
-    this.trustValidator = new TrustStoreValidator(tiRootCertificates);
-    this.outerClient =
-        new HeaderDecoratorHttpClient(
-            outerClient, List.of(new HttpClient.Header("x-useragent", userAgent)));
-  }
-
-  public ConnectionFactory(
-      HttpClient outerClient, boolean isPu, String userAgent, TrustValidator trustValidator) {
+      HttpClient outerClient, boolean isPu, String xUserAgent, TrustValidator trustValidator) {
     this.isPu = isPu;
     this.trustValidator = trustValidator;
-    this.outerClient =
-        new HeaderDecoratorHttpClient(
-            outerClient, List.of(new HttpClient.Header("x-useragent", userAgent)));
+    this.xUserAgent = xUserAgent;
+    this.userAgentHeaders =
+        List.of(
+            new HttpClient.Header("x-useragent", xUserAgent),
+            new HttpClient.Header("User-Agent", xUserAgent));
+    this.outerClient = new HeaderDecoratorHttpClient(outerClient, userAgentHeaders);
   }
 
   /**
@@ -73,8 +70,12 @@ public class ConnectionFactory implements VauClientFactory {
       log.atDebug().log("successful VAU handshake");
     }
 
-    return new VauHttpClientImpl(
-        new Connection(outerClient, result.cid(), result.sessionUri(), client));
+    var innerClient =
+        new VauHttpClientImpl(
+            new Connection(outerClient, result.cid(), result.sessionUri(), client));
+
+    // user-agent headers: A_24677 & A_22470
+    return new HeaderDecoratorHttpClient(innerClient, userAgentHeaders);
   }
 
   /** does the handshake to initialize the trusted environment */

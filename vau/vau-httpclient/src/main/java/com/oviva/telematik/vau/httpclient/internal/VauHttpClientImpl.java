@@ -15,11 +15,6 @@ public class VauHttpClientImpl implements HttpClient {
 
   private static final Logger log = LoggerFactory.getLogger("vau-httpclient");
 
-  // A_24677 & A_22470
-  private static final String X_USERAGENT = "Oviva/0.0.1";
-
-  private static final Header X_USERAGENT_HEADER = new Header("x-useragent", X_USERAGENT);
-
   private final Connection conn;
 
   public VauHttpClientImpl(Connection conn) {
@@ -34,8 +29,6 @@ public class VauHttpClientImpl implements HttpClient {
     if (req.headers() != null) {
       headers.addAll(req.headers());
     }
-
-    headers.add(X_USERAGENT_HEADER);
 
     // we don't support chunking and always send all at once, so strip the header and set a proper
     // length

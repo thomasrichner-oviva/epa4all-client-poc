@@ -49,11 +49,6 @@ public class VauClientStateMachine extends AbstractVauStateMachine {
     this.signedPublicKeysTrustValidator = signedPublicKeysTrustValidator;
   }
 
-  public VauClientStateMachine(SignedPublicKeysTrustValidator signedPublicKeysTrustValidator) {
-    super(false);
-    this.signedPublicKeysTrustValidator = signedPublicKeysTrustValidator;
-  }
-
   /**
    * Handshake Message 1: Generates Key Pairs, stores them in a Message1 and encodes it
    *

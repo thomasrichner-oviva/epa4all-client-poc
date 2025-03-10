@@ -51,7 +51,7 @@ class EndToEndTest {
     if (enabler == Enabler.EPA_DEPLOYMENT) {
       proxy = null;
     }
-    app = new Main(new Main.Configuration(proxy, 0, false));
+    app = new Main(new Main.Configuration(proxy, 0, false, "GEMOvivepa4fA1d5W8sR/0.0.1"));
 
     // VAU base URI is dynamic!
     var si = app.start();
@@ -82,11 +82,9 @@ class EndToEndTest {
     // X229678976 // RISE with access from Oviva's SMB-C
 
     // Oviva
-    // those are not authorized in the FdV
-    // KVNR: X110467329
-    // KVNR: X110485695
-    // KVNR: X110406713
-    //    final var insurantId = "U903747974";
+    // KVNR: X110467329 (unauthorized)
+    // KVNR: X110485695 (unauthorized)
+    // KVNR: X110406713 (unauthorized)
     // KVNR: X110661675 (authorized & FdV)
     final var insurantId = "X110661675";
 

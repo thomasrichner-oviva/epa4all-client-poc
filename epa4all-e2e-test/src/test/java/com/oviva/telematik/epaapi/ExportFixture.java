@@ -818,7 +818,7 @@ public class ExportFixture {
                     List.of("25^^^&1.3.6.1.4.1.19376.3.276.1.5.11&ISO"),
                     List.of("^^Internet^telematik-infrastructure@oviva.com"))),
             "AVAILABLE",
-            List.of(ConfidentialityCode.NORMAL.getValue()),
+            List.of(),
             ClassCode.DURCHFUEHRUNGSPROTOKOLL.getValue(),
             "DiGA MIO-Beispiel eines Dokument von Referenzimplementierung geschickt (Simple Roundtrip)",
             LocalDateTime.now().minusHours(3),

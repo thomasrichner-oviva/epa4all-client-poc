@@ -1,8 +1,10 @@
 package com.oviva.telematik.vau.proxy;
 
 import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
+import com.oviva.telematik.vau.httpclient.HttpClient;
 import com.oviva.telematik.vau.httpclient.VauClientFactoryBuilder;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
+import com.oviva.telematik.vau.httpclient.internal.LoggingHttpClient;
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.RequestDumpingHandler;
@@ -31,7 +33,7 @@ public class Main {
   }
 
   public static void main(String[] args) {
-    var app = new Main(null);
+    var app = new Main(new Configuration(null, -1, false, "TBD"));
 
     app.start();
     Signal.handle(new Signal("INT"), signal -> app.stop());
@@ -47,18 +49,19 @@ public class Main {
     }
   }
 
-  private CountDownLatch startedCount = new CountDownLatch(1);
+  private final CountDownLatch startedCount = new CountDownLatch(1);
 
   private Undertow proxyServer;
 
-  private Configuration config;
+  private final Configuration config;
 
   // new InetSocketAddress("127.0.0.1", 3128)
   public Main(Configuration config) {
     this.config = config;
   }
 
-  public record Configuration(InetSocketAddress upstreamProxy, int listenPort, boolean isPu) {}
+  public record Configuration(
+      InetSocketAddress upstreamProxy, int listenPort, boolean isPu, String xUserAgent) {}
 
   public record ServerInfo(InetSocketAddress listenAddress) {}
 
@@ -74,12 +77,17 @@ public class Main {
       outerVauClientBuilder.proxy(ProxySelector.of(config.upstreamProxy()));
     }
 
-    var outerVauClient = outerVauClientBuilder.build();
+    HttpClient outerVauClient = JavaHttpClient.from(outerVauClientBuilder.build());
+
+    if (log.isDebugEnabled()) {
+      outerVauClient = new LoggingHttpClient(outerVauClient, log);
+    }
 
     // connect VAU tunnel (unauthenticated)
     var clientFactory =
-        VauClientFactoryBuilder.builder()
-            .outerClient(JavaHttpClient.from(outerVauClient))
+        VauClientFactoryBuilder.newBuilder()
+            .xUserAgent(config.xUserAgent())
+            .outerClient(outerVauClient)
             .isPu(config.isPu())
             .withInsecureTrustValidator()
             .build();
