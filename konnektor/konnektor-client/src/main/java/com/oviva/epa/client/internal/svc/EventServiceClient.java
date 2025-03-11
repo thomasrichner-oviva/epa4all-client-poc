@@ -36,7 +36,7 @@ public class EventServiceClient {
   }
 
   public GetCardsResponse getSmbInfo() {
-    var request = buildGetCards(true, CardTypeType.SM_B);
+    var request = buildGetAllSmBCards();
     return getCards(request);
   }
 
@@ -44,11 +44,11 @@ public class EventServiceClient {
     return eventService.getCards(request);
   }
 
-  private GetCards buildGetCards(final boolean mandantWide, final CardTypeType cardType) {
+  private GetCards buildGetAllSmBCards() {
     final var getCardsRequest = new ObjectFactory().createGetCards();
-    getCardsRequest.setCardType(cardType);
+    getCardsRequest.setCardType(CardTypeType.SM_B);
     getCardsRequest.setContext(context.toContext());
-    getCardsRequest.setMandantWide(mandantWide);
+    getCardsRequest.setMandantWide(true);
     return getCardsRequest;
   }
 }

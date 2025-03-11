@@ -12,7 +12,7 @@ import com.oviva.telematik.vau.epa4all.client.authz.internal.RsaSignatureAdapter
 import com.oviva.telematik.vau.epa4all.client.info.InformationService;
 import com.oviva.telematik.vau.httpclient.internal.DowngradeHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
-import com.oviva.telematik.vau.proxy.Main;
+import com.oviva.telematik.vau.proxy.VauProxy;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.http.HttpClient;
@@ -30,14 +30,14 @@ public class Epa4AllClientFactory implements AutoCloseable {
   private static final String LOCALHOST = "127.0.0.1";
 
   private static Logger log = LoggerFactory.getLogger(Epa4AllClientFactory.class);
-  private final Main proxyServer;
+  private final VauProxy proxyServer;
   private final SoapClientFactory client;
   private final AuthorizationService authorizationService;
   private final InformationService informationService;
   private final SmcbCard card;
 
   public Epa4AllClientFactory(
-      Main proxyServer,
+      VauProxy proxyServer,
       SoapClientFactory client,
       AuthorizationService authorizationService,
       InformationService informationService,
@@ -62,7 +62,8 @@ public class Epa4AllClientFactory implements AutoCloseable {
 
     var xUserAgent = isPu ? "GEMOvivepa4fA734EBIP/0.1.0" : "GEMOvivepa4fA1d5W8sR/0.1.0";
 
-    var proxyServer = new Main(new Main.Configuration(konnektorProxyAddress, 0, isPu, xUserAgent));
+    var proxyServer =
+        new VauProxy(new VauProxy.Configuration(konnektorProxyAddress, 0, isPu, xUserAgent));
     var serverInfo = proxyServer.start();
     var vauProxyServerListener = serverInfo.listenAddress();
     var vauProxyServerAddr = new InetSocketAddress(LOCALHOST, vauProxyServerListener.getPort());

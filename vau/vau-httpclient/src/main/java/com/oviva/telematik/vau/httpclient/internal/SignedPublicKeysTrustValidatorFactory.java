@@ -18,9 +18,7 @@ public class SignedPublicKeysTrustValidatorFactory {
     this.trustValidator = trustValidator;
   }
 
-  @Override
   public VauClientStateMachine create(URI vauUri) {
-
     return new VauClientStateMachine(
         isPu, new SignedPublicKeysTrustValidatorImpl(outerClient, trustValidator, vauUri));
   }

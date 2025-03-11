@@ -10,7 +10,7 @@ import com.oviva.telematik.vau.epa4all.client.authz.internal.RsaSignatureAdapter
 import com.oviva.telematik.vau.epa4all.client.info.InformationService;
 import com.oviva.telematik.vau.httpclient.internal.DowngradeHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
-import com.oviva.telematik.vau.proxy.Main;
+import com.oviva.telematik.vau.proxy.VauProxy;
 import java.net.*;
 import java.net.http.HttpClient;
 import java.security.*;
@@ -42,7 +42,7 @@ class EndToEndTest {
   }
 
   private final Enabler enabler = Enabler.RISE;
-  private Main app;
+  private VauProxy app;
   private InetSocketAddress vauProxyServerListener = null;
 
   @BeforeEach
@@ -51,7 +51,7 @@ class EndToEndTest {
     if (enabler == Enabler.EPA_DEPLOYMENT) {
       proxy = null;
     }
-    app = new Main(new Main.Configuration(proxy, 0, false, "GEMOvivepa4fA1d5W8sR/0.0.1"));
+    app = new VauProxy(new VauProxy.Configuration(proxy, 0, false, "GEMOvivepa4fA1d5W8sR/0.0.1"));
 
     // VAU base URI is dynamic!
     var si = app.start();

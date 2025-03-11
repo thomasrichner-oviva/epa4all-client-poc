@@ -23,30 +23,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Signal;
 
-public class Main {
+public class VauProxy {
 
-  private static final Logger log = LoggerFactory.getLogger(Main.class);
+  private static final Logger log = LoggerFactory.getLogger(VauProxy.class);
 
   static {
     Security.addProvider(new BouncyCastlePQCProvider());
     Security.addProvider(new BouncyCastleProvider());
-  }
-
-  public static void main(String[] args) {
-    var app = new Main(new Configuration(null, -1, false, "TBD"));
-
-    app.start();
-    Signal.handle(new Signal("INT"), signal -> app.stop());
-    waitForever();
-  }
-
-  private static void waitForever() {
-    var cl = new CountDownLatch(1);
-    try {
-      cl.await();
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
   }
 
   private final CountDownLatch startedCount = new CountDownLatch(1);
@@ -55,8 +38,7 @@ public class Main {
 
   private final Configuration config;
 
-  // new InetSocketAddress("127.0.0.1", 3128)
-  public Main(Configuration config) {
+  public VauProxy(Configuration config) {
     this.config = config;
   }
 

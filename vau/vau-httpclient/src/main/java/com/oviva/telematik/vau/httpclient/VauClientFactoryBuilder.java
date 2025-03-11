@@ -65,7 +65,7 @@ public class VauClientFactoryBuilder {
     }
 
     if (xUserAgent == null) {
-      xUserAgent = "TEST1234567890AB/2.1.12-45";
+      throw new IllegalArgumentException("xUserAgent missing");
     }
 
     var clientFactory =

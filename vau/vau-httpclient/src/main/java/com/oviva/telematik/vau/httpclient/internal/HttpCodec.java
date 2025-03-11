@@ -4,11 +4,9 @@ import com.oviva.telematik.vau.httpclient.HttpClient;
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class HttpCodec {
 
@@ -17,8 +15,8 @@ public class HttpCodec {
   private static final String HTTP_VERSION = "HTTP/1.1";
   private static final byte[] CRLF = "\r\n".getBytes(StandardCharsets.UTF_8);
 
-  private static final Set<String> UNSUPPORTED_HEADERS = Set.of("transfer-coding", "TE");
-  private static final Set<String> SKIP_HEADERS = Set.of("content-length");
+  private static final Set<String> UNSUPPORTED_HEADERS = Set.of("Transfer-Coding", "TE");
+  private static final Set<String> SKIP_HEADERS = Set.of("Content-Length");
   private static final Set<String> SUPPORTED_METHODS = Set.of("GET", "POST", "PUT", "DELETE");
   private static final Pattern HEADER_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9-_]+");
 
@@ -85,7 +83,7 @@ public class HttpCodec {
         }
 
         var h = parseHeader(line);
-        if ("content-length".equals(h.name())) {
+        if ("Content-Length".equals(h.name())) {
 
           // we've already set the content-length!
           if (contentLength >= 0) {
@@ -186,7 +184,7 @@ public class HttpCodec {
       return;
     }
 
-    buf.writeBytes(asUtf8("content-length: "));
+    buf.writeBytes(asUtf8("Content-Length: "));
     buf.writeBytes(asUtf8(Integer.toString(length)));
     buf.writeBytes(CRLF);
   }
@@ -244,8 +242,22 @@ public class HttpCodec {
   }
 
   private static String canonicalizeHeaderName(String name) {
+    name = name.trim();
+    if (name.isEmpty()) {
+      return name;
+    }
+
     // https://www.rfc-editor.org/rfc/rfc9110.html#name-header-fields
-    return name.toLowerCase(Locale.US);
+    return Arrays.stream(name.split("-"))
+        .map(
+            s -> {
+              if (s.isEmpty()) {
+                return s;
+              }
+              var c = Character.toTitleCase(s.charAt(0));
+              return c + s.substring(1);
+            })
+        .collect(Collectors.joining("-"));
   }
 
   private static byte[] asUtf8(String s) {

@@ -45,7 +45,6 @@ public class CardServiceClient {
     return response;
   }
 
-  // region private
   private GetPinStatusResponse getPinStatus(@NonNull GetPinStatus request) {
     return cardService.getPinStatus(request);
   }

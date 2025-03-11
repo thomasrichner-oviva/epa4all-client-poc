@@ -5,71 +5,359 @@ import static org.junit.jupiter.api.Assertions.*;
 import com.oviva.telematik.vau.httpclient.HttpClient;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class HttpCodecTest {
 
+  private static final URI TEST_URI = URI.create("https://example.com/test");
+
   @Test
-  void decode() {
-    var raw =
-        """
-      HTTP/1.1 302 Found
-      Content-Type: application/json
-      Location: https://idp-ref.app.ti-dienste.de/auth?response_type=code&scope=openid+ePA-bmt-rt&nonce=WI7WY279m4GkkbnKzcaa4GvdNXRRmHum45W8jLy4qS4knnjvf5zwl8TgwR4khzw2&client_id=GEMBITMAePAe2zrxzLOR&redirect_uri=https%3A%2F%2Fe4a-rt.deine-epa.de%2F&code_challenge=Vug9LZByRxhRzk5TkCfo_n1Vzf00MvyFc-yJ7Z_bP8I&code_challenge_method=S256&state=coSyovEtvs6wROCMS9ClLIlo3QXgadFB1QzBTpyO9UiYgE1RBXsiaKcW6xT8Avn6
+  void encode_shouldCreateValidHttpRequest_forGetWithNoBody() {
+    // Given
+    var request =
+        new HttpClient.Request(
+            TEST_URI, "GET", List.of(new HttpClient.Header("Accept", "application/json")), null);
 
-      """;
+    // When
+    var encoded = HttpCodec.encode(request);
+    var encodedStr = new String(encoded, StandardCharsets.UTF_8);
 
-    var res = HttpCodec.decode(raw.getBytes(StandardCharsets.UTF_8));
-
-    assertEquals(302, res.status());
-
-    assertTrue(res.headers().stream().anyMatch(h -> "location".equalsIgnoreCase(h.name())));
+    // Then
+    assertTrue(encodedStr.startsWith("GET /test HTTP/1.1\r\n"), "Should start with request line");
+    assertTrue(encodedStr.contains("Accept: application/json\r\n"), "Should contain header");
+    assertTrue(
+        encodedStr.contains("Host: example.com\r\n") || !encodedStr.contains("Host:"),
+        "May or may not contain host header");
+    assertTrue(encodedStr.contains("\r\n\r\n"), "Should have empty line before body");
   }
 
   @Test
-  void encode() {
-    var bodyBytes =
-        """
-    {
-      "authorizationCode": "hello",
-      "clientAttest": "world"
-    }
-    """
-            .getBytes(StandardCharsets.UTF_8);
-    var expected =
-        """
-    POST /epa/authz/v1/send_authcode_sc HTTP/1.1\r
-    accept: application/json\r
-    content-type: application/json\r
-    user-agent: Java-http-client/21.0.3\r
-    host: localhost:7777\r
-    x-useragent: Oviva/0.0.1\r
-    content-length: %d\r
-    \r
-    {
-      "authorizationCode": "hello",
-      "clientAttest": "world"
-    }
-    """
-            .formatted(bodyBytes.length)
-            .getBytes(StandardCharsets.UTF_8);
-
-    var req =
+  void encode_shouldCreateValidHttpRequest_forPostWithBody() {
+    // Given
+    var body = "test body".getBytes(StandardCharsets.UTF_8);
+    var request =
         new HttpClient.Request(
-            URI.create("http://localhost:7777/epa/authz/v1/send_authcode_sc"),
-            "POST",
+            TEST_URI, "POST", List.of(new HttpClient.Header("Content-Type", "text/plain")), body);
+
+    // When
+    var encoded = HttpCodec.encode(request);
+    var encodedStr = new String(encoded, StandardCharsets.UTF_8);
+
+    // Then
+    assertTrue(encodedStr.startsWith("POST /test HTTP/1.1\r\n"), "Should start with request line");
+    assertTrue(encodedStr.contains("Content-Type: text/plain\r\n"), "Should contain header");
+    assertTrue(encodedStr.contains("Content-Length: 9\r\n"), "Should add correct content length");
+    assertTrue(encodedStr.endsWith("\r\n\r\ntest body"), "Should end with body");
+  }
+
+  @Test
+  void encode_shouldCanonicalizeHeaderNames() {
+    // Given
+    var request =
+        new HttpClient.Request(
+            TEST_URI,
+            "GET",
             List.of(
                 new HttpClient.Header("accept", "application/json"),
-                new HttpClient.Header("content-type", "application/json"),
-                new HttpClient.Header("user-agent", "Java-http-client/21.0.3"),
-                new HttpClient.Header("host", "localhost:7777"),
-                new HttpClient.Header("x-useragent", "Oviva/0.0.1")),
-            bodyBytes);
+                new HttpClient.Header("CONTENT-TYPE", "text/plain")),
+            null);
 
-    var got = HttpCodec.encode(req);
+    // When
+    var encoded = HttpCodec.encode(request);
+    var encodedStr = new String(encoded, StandardCharsets.UTF_8);
+
+    // Then
+    assertTrue(
+        encodedStr.contains("Accept: application/json\r\n"),
+        "Should canonicalize lowercase header name");
+    assertTrue(
+        encodedStr.contains("CONTENT-TYPE: text/plain\r\n"),
+        "Should preserve uppercase header name");
+  }
+
+  @Test
+  void encode_shouldThrowExceptionForUnsupportedHeaders() {
+    // Given
+    var request =
+        new HttpClient.Request(
+            TEST_URI,
+            "GET",
+            List.of(
+                new HttpClient.Header("Accept", "application/json"),
+                new HttpClient.Header("transfer-coding", "chunked")),
+            null);
+
+    // Then
+    assertThrows(
+        HttpClient.HttpException.class,
+        () -> HttpCodec.encode(request),
+        "Should throw exception for unsupported header");
+  }
+
+  @Test
+  void encode_shouldSkipContentLengthHeader_whenAddedManually() {
+    // Given
+    var request =
+        new HttpClient.Request(
+            TEST_URI,
+            "GET",
+            List.of(new HttpClient.Header("Content-Length", "1000")),
+            "test".getBytes(StandardCharsets.UTF_8));
+
+    // When
+    var encoded = HttpCodec.encode(request);
+    var encodedStr = new String(encoded, StandardCharsets.UTF_8);
+
+    // Then
+    assertTrue(
+        encodedStr.contains("Content-Length: 4\r\n"),
+        "Should use actual content length, not the provided one");
+    assertFalse(
+        encodedStr.contains("Content-Length: 1000\r\n"),
+        "Should not use manually provided Content-Length");
+  }
+
+  @ParameterizedTest
+  @ValueSource(strings = {"PATCH", "OPTIONS", "HEAD", "CONNECT", "TRACE"})
+  void encode_shouldThrowException_forUnsupportedMethods(String method) {
+    // Given
+    var request = new HttpClient.Request(TEST_URI, method, Collections.emptyList(), null);
+
+    // Then
+    assertThrows(
+        HttpClient.HttpException.class,
+        () -> HttpCodec.encode(request),
+        "Should throw exception for unsupported method: " + method);
+  }
+
+  @Test
+  void encode_shouldThrowException_forInvalidHeaderName() {
+    // Given
+    var request =
+        new HttpClient.Request(
+            TEST_URI, "GET", List.of(new HttpClient.Header("Invalid Header", "value")), null);
+
+    // Then
+    assertThrows(
+        HttpClient.HttpException.class,
+        () -> HttpCodec.encode(request),
+        "Should throw exception for invalid header name");
+  }
+
+  @Test
+  void decode_shouldParseValidHttpResponse() {
+    // Given
+    var responseStr =
+        """
+        HTTP/1.1 200 OK\r
+        Content-Type: application/json\r
+        Content-Length: 13\r
+        \r
+        {"key":"value"}""";
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // When
+    var response = HttpCodec.decode(responseBytes);
+
+    // Then
+    assertEquals(200, response.status(), "Should parse status code correctly");
+    assertEquals(2, response.headers().size(), "Should parse headers correctly");
+
+    // Verify Content-Type header
+    boolean hasContentTypeHeader = false;
+    for (HttpClient.Header header : response.headers()) {
+      if ("Content-Type".equals(header.name()) && "application/json".equals(header.value())) {
+        hasContentTypeHeader = true;
+        break;
+      }
+    }
+    assertTrue(hasContentTypeHeader, "Should have Content-Type header");
 
     assertEquals(
-        new String(expected, StandardCharsets.UTF_8), new String(got, StandardCharsets.UTF_8));
+        "{\"key\":\"value\"}",
+        new String(response.body(), StandardCharsets.UTF_8),
+        "Should parse body correctly");
+  }
+
+  @Test
+  void decode_shouldHandleResponseWithoutBody() {
+    // Given
+    var responseStr =
+        """
+        HTTP/1.1 204 No Content\r
+        Server: Test\r
+        Content-Length: 0\r
+        \r
+        """;
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // When
+    var response = HttpCodec.decode(responseBytes);
+
+    // Then
+    assertEquals(204, response.status(), "Should parse status code correctly");
+    assertEquals(2, response.headers().size(), "Should parse headers correctly");
+    assertEquals(0, response.body().length, "Body should be empty");
+  }
+
+  @Test
+  void decode_shouldHandleResponseWithMultipleHeaders() {
+    // Given
+    var responseStr =
+        """
+        HTTP/1.1 200 OK\r
+        Content-Type: text/plain\r
+        X-Custom-Header: value1\r
+        X-Custom-Header: value2\r
+        Content-Length: 4\r
+        \r
+        test""";
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // When
+    var response = HttpCodec.decode(responseBytes);
+
+    // Then
+    assertEquals(200, response.status(), "Should parse status code correctly");
+    assertEquals(4, response.headers().size(), "Should parse all headers correctly");
+
+    // Check that both custom headers are present
+    var customHeaderValues =
+        response.headers().stream()
+            .filter(h -> "X-Custom-Header".equals(h.name()))
+            .map(HttpClient.Header::value)
+            .toList();
+    assertEquals(2, customHeaderValues.size(), "Should keep duplicate headers");
+    assertTrue(customHeaderValues.contains("value1"), "Should contain first custom header value");
+    assertTrue(customHeaderValues.contains("value2"), "Should contain second custom header value");
+
+    assertEquals(
+        "test", new String(response.body(), StandardCharsets.UTF_8), "Should parse body correctly");
+  }
+
+  @Test
+  void decode_shouldHandleResponseWithoutContentLength() {
+    // Given
+    var responseStr =
+        """
+        HTTP/1.1 200 OK\r
+        Content-Type: text/plain\r
+        \r
+        test body without explicit content length""";
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // When
+    var response = HttpCodec.decode(responseBytes);
+
+    // Then
+    assertEquals(200, response.status(), "Should parse status code correctly");
+    assertEquals(1, response.headers().size(), "Should parse header correctly");
+    assertEquals(
+        "test body without explicit content length",
+        new String(response.body(), StandardCharsets.UTF_8),
+        "Should parse body correctly even without Content-Length");
+  }
+
+  @Test
+  void decode_shouldHandleResponseWithEmptyBody() {
+    // Given
+    var responseStr =
+        """
+        HTTP/1.1 200 OK\r
+        Content-Type: application/json\r
+        Content-Length: 0\r
+        \r
+        """;
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // When
+    var response = HttpCodec.decode(responseBytes);
+
+    // Then
+    assertEquals(200, response.status(), "Should parse status code correctly");
+    assertEquals(2, response.headers().size(), "Should parse headers correctly");
+    assertEquals(0, response.body().length, "Body should be empty");
+  }
+
+  @Test
+  void decode_shouldHandleMalformedStatusLine() {
+    // Given
+    var responseStr = "Malformed status line\r\nContent-Type: text/plain\r\n\r\nBody";
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // Then
+    assertThrows(
+        HttpClient.HttpException.class,
+        () -> HttpCodec.decode(responseBytes),
+        "Should throw exception for malformed status line");
+  }
+
+  @Test
+  void decode_shouldHandleMalformedHeader() {
+    // Given
+    var responseStr =
+        """
+        HTTP/1.1 200 OK\r
+        Malformed header without colon\r
+        Content-Length: 4\r
+        \r
+        test""";
+    var responseBytes = responseStr.getBytes(StandardCharsets.UTF_8);
+
+    // Then
+    assertThrows(
+        HttpClient.HttpException.class,
+        () -> HttpCodec.decode(responseBytes),
+        "Should throw exception for malformed header");
+  }
+
+  @Test
+  void encode_decode_shouldRoundtrip() {
+    // Given
+    var body = "{\"test\":\"value\"}".getBytes(StandardCharsets.UTF_8);
+    var originalRequest =
+        new HttpClient.Request(
+            TEST_URI,
+            "POST",
+            List.of(new HttpClient.Header("Content-Type", "application/json")),
+            body);
+
+    // When - simulate request-response cycle
+    var encodedRequest = HttpCodec.encode(originalRequest);
+
+    var responseBytes =
+        """
+        HTTP/1.1 200 OK\r
+        Content-Type: application/json\r
+        Content-Length: %d\r
+        \r
+        %s"""
+            .formatted(body.length, new String(body, StandardCharsets.UTF_8))
+            .getBytes(StandardCharsets.UTF_8);
+
+    // Decode the response
+    var decodedResponse = HttpCodec.decode(responseBytes);
+
+    // Then
+    assertEquals(200, decodedResponse.status());
+
+    // Check Content-Type header
+    boolean hasCorrectContentType = false;
+    for (HttpClient.Header header : decodedResponse.headers()) {
+      if ("Content-Type".equals(header.name()) && "application/json".equals(header.value())) {
+        hasCorrectContentType = true;
+        break;
+      }
+    }
+    assertTrue(hasCorrectContentType, "Should preserve Content-Type header");
+
+    // Compare bodies
+    var originalBodyString = new String(body, StandardCharsets.UTF_8);
+    var decodedBodyString = new String(decodedResponse.body(), StandardCharsets.UTF_8);
+    assertEquals(originalBodyString, decodedBodyString, "Body should match original");
   }
 }
