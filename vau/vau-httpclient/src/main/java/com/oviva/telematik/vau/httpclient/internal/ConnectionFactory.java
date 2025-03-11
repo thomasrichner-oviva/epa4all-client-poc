@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.dataformat.cbor.databind.CBORMapper;
 import com.oviva.telematik.vau.httpclient.HttpClient;
 import com.oviva.telematik.vau.httpclient.VauClientFactory;
-import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import de.gematik.vau.lib.VauClientStateMachine;
 import de.gematik.vau.lib.exceptions.VauProtocolException;
 import java.io.IOException;
@@ -26,23 +25,23 @@ public class ConnectionFactory implements VauClientFactory {
   private static final Pattern VAU_CID_PATTERN = Pattern.compile("/[A-Za-z0-9-/]+");
 
   private final HttpClient outerClient;
-  private final boolean isPu;
-
-  private final TrustValidator trustValidator;
   private final List<HttpClient.Header> userAgentHeaders;
+
+  private final SignedPublicKeysTrustValidatorFactory signedPublicKeysTrustValidatorFactory;
 
   /**
    * @param xUserAgent as registered with Gematik, CLIENTID1234567890AB/2.1.12-45
    */
   public ConnectionFactory(
-      HttpClient outerClient, boolean isPu, String xUserAgent, TrustValidator trustValidator) {
-    this.isPu = isPu;
-    this.trustValidator = trustValidator;
+      HttpClient outerClient,
+      String xUserAgent,
+      SignedPublicKeysTrustValidatorFactory signedPublicKeysTrustValidatorFactory) {
     this.userAgentHeaders =
         List.of(
             new HttpClient.Header("x-useragent", xUserAgent),
             new HttpClient.Header("User-Agent", xUserAgent));
     this.outerClient = new HeaderDecoratorHttpClient(outerClient, userAgentHeaders);
+    this.signedPublicKeysTrustValidatorFactory = signedPublicKeysTrustValidatorFactory;
   }
 
   /**
@@ -54,9 +53,7 @@ public class ConnectionFactory implements VauClientFactory {
    */
   public HttpClient connect(URI vauUri) {
 
-    var client =
-        new VauClientStateMachine(
-            isPu, new SignedPublicKeysTrustValidatorImpl(outerClient, trustValidator, vauUri));
+    var client = signedPublicKeysTrustValidatorFactory.create(vauUri);
 
     if (log.isDebugEnabled()) {
       log.atDebug().log("starting VAU handshake");
@@ -184,5 +181,9 @@ public class ConnectionFactory implements VauClientFactory {
     } catch (IOException e) {
       return "<invalid cbor bytes>";
     }
+  }
+
+  public interface SignedPublicKeysTrustValidatorFactory {
+    VauClientStateMachine create(URI vauUri);
   }
 }

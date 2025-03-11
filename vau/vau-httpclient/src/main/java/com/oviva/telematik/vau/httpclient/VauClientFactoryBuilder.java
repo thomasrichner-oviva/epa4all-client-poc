@@ -2,6 +2,7 @@ package com.oviva.telematik.vau.httpclient;
 
 import com.oviva.telematik.vau.httpclient.internal.ConnectionFactory;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
+import com.oviva.telematik.vau.httpclient.internal.SignedPublicKeysTrustValidatorFactoryImpl;
 import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import java.time.Duration;
 
@@ -67,6 +68,8 @@ public class VauClientFactoryBuilder {
       xUserAgent = "TEST1234567890AB/2.1.12-45";
     }
 
-    return new ConnectionFactory(outerClient, isPu, xUserAgent, trustValidator);
+    var clientFactory =
+        new SignedPublicKeysTrustValidatorFactoryImpl(isPu, outerClient, trustValidator);
+    return new ConnectionFactory(outerClient, xUserAgent, clientFactory);
   }
 }

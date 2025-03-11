@@ -1,6 +1,7 @@
 package com.oviva.telematik.vau.httpclient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 
 import com.oviva.telematik.vau.httpclient.internal.ConnectionFactory;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
@@ -32,9 +33,11 @@ class ConnectionFactoryTest {
     TrustValidator naiveValidator =
         (X509Certificate a, X509Certificate b, List<X509Certificate> c, byte[] d) ->
             new TrustValidator.ValidationResult(true, null, null);
+
+    var tvf = mock(ConnectionFactory.SignedPublicKeysTrustValidatorFactory.class);
+
     var cf =
-        new ConnectionFactory(
-            JavaHttpClient.from(HttpClient.newHttpClient()), false, "Test/0.0.1", naiveValidator);
+        new ConnectionFactory(JavaHttpClient.from(HttpClient.newHttpClient()), "Test/0.0.1", tvf);
     var httpClient = cf.connect(vauUri);
 
     var res =
