@@ -5,11 +5,10 @@ import static org.mockito.Mockito.mock;
 
 import com.oviva.telematik.vau.httpclient.internal.ConnectionFactory;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
-import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
+import com.oviva.telematik.vau.httpclient.internal.SignedPublicKeysTrustValidatorFactory;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.security.Security;
-import java.security.cert.X509Certificate;
 import java.util.List;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
@@ -30,11 +29,7 @@ class ConnectionFactoryTest {
     var vauUri = URI.create("https://e4a-rt.deine-epa.de/VAU");
     //    var vauUri = URI.create("http://localhost:8081/VAU");
 
-    TrustValidator naiveValidator =
-        (X509Certificate a, X509Certificate b, List<X509Certificate> c, byte[] d) ->
-            new TrustValidator.ValidationResult(true, null, null);
-
-    var tvf = mock(ConnectionFactory.SignedPublicKeysTrustValidatorFactory.class);
+    var tvf = mock(SignedPublicKeysTrustValidatorFactory.class);
 
     var cf =
         new ConnectionFactory(JavaHttpClient.from(HttpClient.newHttpClient()), "Test/0.0.1", tvf);

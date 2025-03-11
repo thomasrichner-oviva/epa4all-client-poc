@@ -5,14 +5,13 @@ import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import de.gematik.vau.lib.VauClientStateMachine;
 import java.net.URI;
 
-public class SignedPublicKeysTrustValidatorFactoryImpl
-    implements ConnectionFactory.SignedPublicKeysTrustValidatorFactory {
+public class SignedPublicKeysTrustValidatorFactory {
 
   private final boolean isPu;
   private final HttpClient outerClient;
   private final TrustValidator trustValidator;
 
-  public SignedPublicKeysTrustValidatorFactoryImpl(
+  public SignedPublicKeysTrustValidatorFactory(
       boolean isPu, HttpClient outerClient, TrustValidator trustValidator) {
     this.isPu = isPu;
     this.outerClient = outerClient;

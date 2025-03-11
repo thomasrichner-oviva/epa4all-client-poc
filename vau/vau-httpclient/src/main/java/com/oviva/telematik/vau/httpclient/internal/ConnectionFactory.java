@@ -182,8 +182,4 @@ public class ConnectionFactory implements VauClientFactory {
       return "<invalid cbor bytes>";
     }
   }
-
-  public interface SignedPublicKeysTrustValidatorFactory {
-    VauClientStateMachine create(URI vauUri);
-  }
 }

@@ -2,7 +2,7 @@ package com.oviva.telematik.vau.httpclient;
 
 import com.oviva.telematik.vau.httpclient.internal.ConnectionFactory;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
-import com.oviva.telematik.vau.httpclient.internal.SignedPublicKeysTrustValidatorFactoryImpl;
+import com.oviva.telematik.vau.httpclient.internal.SignedPublicKeysTrustValidatorFactory;
 import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import java.time.Duration;
 
@@ -69,7 +69,7 @@ public class VauClientFactoryBuilder {
     }
 
     var clientFactory =
-        new SignedPublicKeysTrustValidatorFactoryImpl(isPu, outerClient, trustValidator);
+        new SignedPublicKeysTrustValidatorFactory(isPu, outerClient, trustValidator);
     return new ConnectionFactory(outerClient, xUserAgent, clientFactory);
   }
 }
