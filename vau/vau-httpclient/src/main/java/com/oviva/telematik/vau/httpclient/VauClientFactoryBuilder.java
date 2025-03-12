@@ -1,10 +1,12 @@
 package com.oviva.telematik.vau.httpclient;
 
 import com.oviva.telematik.vau.httpclient.internal.ConnectionFactory;
+import com.oviva.telematik.vau.httpclient.internal.HeaderDecoratorHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.JavaHttpClient;
 import com.oviva.telematik.vau.httpclient.internal.SignedPublicKeysTrustValidatorFactory;
 import com.oviva.telematik.vau.httpclient.internal.cert.TrustValidator;
 import java.time.Duration;
+import java.util.List;
 
 public class VauClientFactoryBuilder {
 
@@ -67,6 +69,12 @@ public class VauClientFactoryBuilder {
     if (xUserAgent == null) {
       throw new IllegalArgumentException("xUserAgent missing");
     }
+
+    var userAgentHeaders =
+        List.of(
+            new HttpClient.Header("X-Useragent", xUserAgent),
+            new HttpClient.Header("User-Agent", xUserAgent));
+    outerClient = new HeaderDecoratorHttpClient(outerClient, userAgentHeaders);
 
     var clientFactory =
         new SignedPublicKeysTrustValidatorFactory(isPu, outerClient, trustValidator);

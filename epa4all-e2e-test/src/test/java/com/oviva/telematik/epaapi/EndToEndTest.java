@@ -66,6 +66,8 @@ class EndToEndTest {
   @Test
   void e2e_RU() throws Exception {
 
+    System.setProperty("jdk.httpclient.HttpClient.log", "errors,requests,headers");
+
     var konnektorService = TestKonnektors.riseKonnektor_RU();
 
     // client -> jumphost proxy -> (Internet || ( RISE VPN -> Telematikinfra) )

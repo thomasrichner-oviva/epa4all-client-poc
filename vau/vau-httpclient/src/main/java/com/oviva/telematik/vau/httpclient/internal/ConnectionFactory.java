@@ -38,7 +38,7 @@ public class ConnectionFactory implements VauClientFactory {
       SignedPublicKeysTrustValidatorFactory signedPublicKeysTrustValidatorFactory) {
     this.userAgentHeaders =
         List.of(
-            new HttpClient.Header("x-useragent", xUserAgent),
+            new HttpClient.Header("X-Useragent", xUserAgent),
             new HttpClient.Header("User-Agent", xUserAgent));
     this.outerClient = new HeaderDecoratorHttpClient(outerClient, userAgentHeaders);
     this.signedPublicKeysTrustValidatorFactory = signedPublicKeysTrustValidatorFactory;

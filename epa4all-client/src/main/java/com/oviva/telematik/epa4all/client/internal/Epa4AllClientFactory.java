@@ -49,7 +49,7 @@ public class Epa4AllClientFactory implements AutoCloseable {
     this.card = card;
   }
 
-  public static Epa4AllClientFactory newFactory(
+  public static Epa4AllClientFactory create(
       KonnektorService konnektorService, InetSocketAddress konnektorProxyAddress, boolean isPu) {
 
     var outerHttpClient = buildOuterHttpClient(konnektorProxyAddress);

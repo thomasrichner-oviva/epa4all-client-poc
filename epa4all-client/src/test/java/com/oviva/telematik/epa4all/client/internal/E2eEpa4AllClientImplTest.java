@@ -18,7 +18,7 @@ class E2eEpa4AllClientImplTest {
     System.setProperty("jdk.httpclient.HttpClient.log", "errors,requests,headers");
 
     try (var cf =
-        Epa4AllClientFactory.newFactory(
+        Epa4AllClientFactory.create(
             TestKonnektors.riseKonnektor_RU(),
             new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT),
             false)) {
