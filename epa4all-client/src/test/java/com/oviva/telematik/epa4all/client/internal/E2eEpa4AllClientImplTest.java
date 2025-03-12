@@ -22,6 +22,7 @@ class E2eEpa4AllClientImplTest {
             .konnektorProxyAddress(
                 new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT))
             .konnektorService(TestKonnektors.riseKonnektor_RU())
+            .useInsecureTrustManager() // use a less naive one!
             .environment(Environment.RU)
             .build()) {
 

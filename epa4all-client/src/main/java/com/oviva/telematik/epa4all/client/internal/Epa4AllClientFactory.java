@@ -1,7 +1,6 @@
 package com.oviva.telematik.epa4all.client.internal;
 
 import com.oviva.epa.client.KonnektorService;
-import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
 import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.epa4all.client.Epa4AllClient;
 import com.oviva.telematik.epaapi.ClientConfiguration;
@@ -52,9 +51,11 @@ public class Epa4AllClientFactory implements AutoCloseable {
   public static Epa4AllClientFactory create(
       KonnektorService konnektorService,
       InetSocketAddress konnektorProxyAddress,
-      Environment environment) {
+      Environment environment,
+      List<TrustManager> trustManagers) {
 
-    var outerHttpClient = buildOuterHttpClient(konnektorProxyAddress);
+    var outerHttpClient =
+        buildOuterHttpClient(konnektorProxyAddress, buildSslContext(trustManagers));
 
     var informationService = buildInformationService(environment, outerHttpClient);
 
@@ -138,11 +139,11 @@ public class Epa4AllClientFactory implements AutoCloseable {
     return new DowngradeHttpClient(JavaHttpClient.from(innerHttpClient));
   }
 
-  private static HttpClient buildOuterHttpClient(InetSocketAddress konnektorProxyAddress) {
+  private static HttpClient buildOuterHttpClient(
+      InetSocketAddress konnektorProxyAddress, SSLContext sslContext) {
 
     return HttpClient.newBuilder()
-        // TODO: use proper truststore
-        .sslContext(naiveSslContext())
+        .sslContext(sslContext)
         // Returned URLs actually need to be resolved via the
         // proxy, their FQDN is only resolved within the TI
         .proxy(ProxySelector.of(konnektorProxyAddress))
@@ -150,10 +151,10 @@ public class Epa4AllClientFactory implements AutoCloseable {
         .build();
   }
 
-  private static SSLContext naiveSslContext() {
+  private static SSLContext buildSslContext(List<TrustManager> tms) {
     try {
       SSLContext sslContext = SSLContext.getInstance("TLSv1.3");
-      sslContext.init(null, new TrustManager[] {new NaiveTrustManager()}, null);
+      sslContext.init(null, tms.toArray(tms.toArray(new TrustManager[0])), null);
       return sslContext;
     } catch (NoSuchAlgorithmException | KeyManagementException e) {
       throw new IllegalStateException("failed to initialise ssl context", e);
