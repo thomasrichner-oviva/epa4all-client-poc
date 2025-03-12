@@ -18,10 +18,12 @@ class E2eEpa4AllClientImplTest {
     System.setProperty("jdk.httpclient.HttpClient.log", "errors,requests,headers");
 
     try (var cf =
-        Epa4AllClientFactory.create(
-            TestKonnektors.riseKonnektor_RU(),
-            new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT),
-            false)) {
+        Epa4AllClientFactoryBuilder.newBuilder()
+            .konnektorProxyAddress(
+                new InetSocketAddress(KONNEKTOR_PROXY_HOST, KONNEKTOR_PROXY_PORT))
+            .konnektorService(TestKonnektors.riseKonnektor_RU())
+            .environment(Environment.RU)
+            .build()) {
 
       // Oviva RISE FdV
       final var insurantId = "X110661675";

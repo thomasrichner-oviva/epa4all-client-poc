@@ -50,20 +50,16 @@ public class Epa4AllClientFactory implements AutoCloseable {
   }
 
   public static Epa4AllClientFactory create(
-      KonnektorService konnektorService, InetSocketAddress konnektorProxyAddress, boolean isPu) {
+      KonnektorService konnektorService,
+      InetSocketAddress konnektorProxyAddress,
+      Environment environment) {
 
     var outerHttpClient = buildOuterHttpClient(konnektorProxyAddress);
 
-    var providers =
-        List.of(InformationService.EpaProvider.IBM, InformationService.EpaProvider.BITMARCK);
+    var informationService = buildInformationService(environment, outerHttpClient);
 
-    var informationService =
-        new InformationService(outerHttpClient, InformationService.Environment.DEV, providers);
+    var proxyServer = buildVauProxy(environment, konnektorProxyAddress);
 
-    var xUserAgent = isPu ? "GEMOvivepa4fA734EBIP/0.1.0" : "GEMOvivepa4fA1d5W8sR/0.1.0";
-
-    var proxyServer =
-        new VauProxy(new VauProxy.Configuration(konnektorProxyAddress, 0, isPu, xUserAgent));
     var serverInfo = proxyServer.start();
     var vauProxyServerListener = serverInfo.listenAddress();
     var vauProxyServerAddr = new InetSocketAddress(LOCALHOST, vauProxyServerListener.getPort());
@@ -71,14 +67,7 @@ public class Epa4AllClientFactory implements AutoCloseable {
     // HTTP client used to communicate inside the VAU tunnel
     var innerVauClient = buildInnerHttpClient(vauProxyServerAddr);
 
-    var cards = konnektorService.listSmcbCards();
-    if (cards.isEmpty()) {
-      throw new Epa4AllClientException("no SMC-B cards found");
-    }
-    if (cards.size() > 1) {
-      log.atInfo().log("more than one SMC-B card found, using first one");
-    }
-    var card = cards.get(0);
+    var card = findSmcBCard(konnektorService);
 
     var signer = new RsaSignatureAdapter(konnektorService, card);
     var authorizationService = new AuthorizationService(innerVauClient, outerHttpClient, signer);
@@ -94,6 +83,40 @@ public class Epa4AllClientFactory implements AutoCloseable {
 
   public Epa4AllClient newClient() {
     return new Epa4AllClientImpl(informationService, authorizationService, card, client);
+  }
+
+  private static SmcbCard findSmcBCard(KonnektorService konnektorService) {
+    var cards = konnektorService.listSmcbCards();
+    if (cards.isEmpty()) {
+      throw new Epa4AllClientException("no SMC-B cards found");
+    }
+    if (cards.size() > 1) {
+      log.atInfo().log("more than one SMC-B card found, using first one");
+    }
+    return cards.get(0);
+  }
+
+  private static VauProxy buildVauProxy(
+      Environment environment, InetSocketAddress konnektorProxyAddress) {
+
+    var isPu = environment == Environment.PU;
+    var xUserAgent = isPu ? "GEMOvivepa4fA734EBIP/0.1.0" : "GEMOvivepa4fA1d5W8sR/0.1.0";
+    return new VauProxy(new VauProxy.Configuration(konnektorProxyAddress, 0, isPu, xUserAgent));
+  }
+
+  private static InformationService buildInformationService(
+      Environment environment, HttpClient outerHttpClient) {
+
+    var providers =
+        List.of(InformationService.EpaProvider.IBM, InformationService.EpaProvider.BITMARCK);
+
+    var informationServiceEnvironment =
+        switch (environment) {
+          case PU -> InformationService.Environment.PU;
+          case RU -> InformationService.Environment.DEV;
+        };
+
+    return new InformationService(outerHttpClient, informationServiceEnvironment, providers);
   }
 
   private static com.oviva.telematik.vau.httpclient.HttpClient buildInnerHttpClient(
