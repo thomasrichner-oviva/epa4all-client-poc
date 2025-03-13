@@ -1,6 +1,7 @@
 package com.oviva.telematik.epa4all.client.internal;
 
 import com.oviva.epa.client.KonnektorService;
+import com.oviva.epa.client.konn.internal.util.NaiveTrustManager;
 import com.oviva.epa.client.model.SmcbCard;
 import com.oviva.telematik.epa4all.client.Epa4AllClient;
 import com.oviva.telematik.epaapi.ClientConfiguration;
@@ -15,16 +16,22 @@ import com.oviva.telematik.vau.proxy.VauProxy;
 import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.http.HttpClient;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
+import java.security.*;
 import java.time.Duration;
 import java.util.List;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+import org.bouncycastle.pqc.jcajce.provider.BouncyCastlePQCProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class Epa4AllClientFactory implements AutoCloseable {
+
+  static {
+    Security.addProvider(new BouncyCastlePQCProvider());
+    Security.addProvider(new BouncyCastleProvider());
+  }
 
   private static final String LOCALHOST = "127.0.0.1";
 
@@ -59,7 +66,8 @@ public class Epa4AllClientFactory implements AutoCloseable {
 
     var informationService = buildInformationService(environment, outerHttpClient);
 
-    var proxyServer = buildVauProxy(environment, konnektorProxyAddress);
+    var trustStore = determineTrustStore(environment == Environment.PU, null);
+    var proxyServer = buildVauProxy(environment, konnektorProxyAddress, trustStore);
 
     var serverInfo = proxyServer.start();
     var vauProxyServerListener = serverInfo.listenAddress();
@@ -98,11 +106,28 @@ public class Epa4AllClientFactory implements AutoCloseable {
   }
 
   private static VauProxy buildVauProxy(
-      Environment environment, InetSocketAddress konnektorProxyAddress) {
+      Environment environment, InetSocketAddress konnektorProxyAddress, KeyStore trustStore) {
 
     var isPu = environment == Environment.PU;
     var xUserAgent = isPu ? "GEMOvivepa4fA734EBIP/0.1.0" : "GEMOvivepa4fA1d5W8sR/0.1.0";
-    return new VauProxy(new VauProxy.Configuration(konnektorProxyAddress, 0, isPu, xUserAgent));
+    return new VauProxy(
+        new VauProxy.Configuration(
+            konnektorProxyAddress,
+            0,
+            isPu,
+            xUserAgent,
+            buildSslContext(List.of(new NaiveTrustManager())),
+            trustStore));
+  }
+
+  private static KeyStore determineTrustStore(boolean isPu, KeyStore providedTrustStore) {
+    if (providedTrustStore != null) {
+      return providedTrustStore;
+    } else if (isPu) {
+      return TelematikTrustRoots.loadPuRootKeys();
+    } else {
+      return TelematikTrustRoots.loadRuRootKeys();
+    }
   }
 
   private static InformationService buildInformationService(

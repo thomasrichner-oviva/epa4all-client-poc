@@ -1,4 +1,4 @@
-package com.oviva.telematik.epaapi;
+package com.oviva.telematik.epa4all.client.internal;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -17,22 +17,21 @@ import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import org.apache.commons.io.IOUtils;
 
-public class TestKonnektors {
+public class ProdKonnektors {
 
-  public static KonnektorService riseKonnektor_RU() {
+  public static KonnektorService riseKonnektor_PU() {
 
     try {
       var proxyAdress = "127.0.0.1";
       var proxyPort = 3128;
 
-      var userAgent = "TEST/0.0.1";
-      //      var userAgent = "GEMOvivepa4fA1d5W8sR/0.0.1";
-      var tiKonnektorUri = "https://10.156.145.103:443";
-      var keystoreFile = "keys/vKon_Client_172.026.002.035.p12";
-      var keystorePassword = "0000";
-      var workplaceId = "a";
-      var clientSystemId = "c";
-      var mandantId = "m";
+      var userAgent = "GEMOvivepa4fA734EBIP/0.0.1";
+      var tiKonnektorUri = "https://10.156.120.103:443";
+      var keystoreFile = "keys/PVS_ECC_client-0010181.konlan-new.p12";
+      var keystorePassword = "KCshx9eqv7xV4tdTunUGbdwJ";
+      var workplaceId = "RISE";
+      var clientSystemId = "Oviva";
+      var mandantId = "Oviva";
       var userId = "admin";
 
       // these are the TLS client credentials as received from the Konnektor provider (e.g. RISE)
@@ -76,7 +75,7 @@ public class TestKonnektors {
       throws IOException, KeyStoreException, CertificateException, NoSuchAlgorithmException {
 
     var is =
-        IOUtils.resourceToURL(keystoreFile, TestKonnektors.class.getClassLoader()).openStream();
+        IOUtils.resourceToURL(keystoreFile, ProdKonnektors.class.getClassLoader()).openStream();
 
     var keyStore = KeyStore.getInstance("PKCS12");
 

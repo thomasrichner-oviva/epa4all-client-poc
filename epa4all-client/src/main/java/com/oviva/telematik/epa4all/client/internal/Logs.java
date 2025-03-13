@@ -7,14 +7,14 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.UUID;
 
-public class Events {
+public class Logs {
 
   // TODO
   private static final URI SERVER =
       URI.create("https://telserver-150654775538.europe-west3.run.app/events");
 
   private static int maxFailures = 8;
-  private static Events instance = new Events();
+  private static Logs instance = new Logs();
 
   private HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
   private String sessionId = "epa4all-client-" + UUID.randomUUID();
@@ -22,7 +22,7 @@ public class Events {
   private boolean shouldLog = true;
   private int failures = 0;
 
-  private Events() {
+  private Logs() {
     shouldLog = !"true".equalsIgnoreCase(System.getenv("TELEMETRY_OPTOUT"));
   }
 
@@ -39,8 +39,8 @@ public class Events {
 
     var raws = "";
     for (var attr : attrs) {
-      var k = attr.key.replaceAll("[\"\\\\]", "_");
-      var v = attr.value.replaceAll("[\"\\\\]", "_");
+      var k = attr.key != null ? attr.key.replaceAll("[\"\\\\]", "_") : "";
+      var v = attr.value != null ? attr.value.replaceAll("[\"\\\\]", "_") : "";
       raws += ",\"%s\":\"%s\"".formatted(k, v);
     }
 

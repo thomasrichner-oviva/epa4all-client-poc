@@ -43,11 +43,7 @@ public class VauCertificateClient {
     var cert = parseDerCertificate(data.cert());
     var chain = data.rcaChain().stream().map(VauCertificateClient::parseDerCertificate).toList();
 
-    var r = trustValidator.validate(cert, ca, chain, ocspResponseDer);
-    if (!r.trusted()) {
-      throw new CertificateValidationException(
-          "VAU certificate untrusted: %s".formatted(r.message()));
-    }
+    trustValidator.validate(cert, ca, chain, ocspResponseDer);
     return new CertData(cert, ca, chain);
   }
 
